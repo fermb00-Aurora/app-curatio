@@ -1,5 +1,11 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { createClient } from '@supabase/supabase-js';
+
+// Setup Supabase client (replace with your env variables or use VITE_*)
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 type AuthContextType = {
   isAuthenticated: boolean;
@@ -32,26 +38,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [navigate]);
 
   const login = async (email: string, password: string) => {
-    console.log("AuthContext: login called with email:", email);
-    // Simulate API call with timeout
-    return new Promise<{ success: boolean; error?: string }>((resolve) => {
-      setTimeout(() => {
-        if (email === 'ovidalreig@gmail.com' && password === 'OviFer123') {
-          localStorage.setItem('isAuthenticated', 'true');
-          setIsAuthenticated(true);
-          console.log("AuthContext: login success, setting isAuthenticated true");
-          resolve({ success: true });
-        } else {
-          console.error("AuthContext: login failed for email:", email);
-          resolve({ success: false, error: 'Invalid email or password. Please try again.' });
-        }
-      }, 800);
-    });
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        return { success: false, error: error.message };
+      }
+      localStorage.setItem('isAuthenticated', 'true');
+      setIsAuthenticated(true);
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Login failed' };
+    }
   };
 
   const logout = () => {
     localStorage.removeItem('isAuthenticated');
     setIsAuthenticated(false);
+    supabase.auth.signOut();
     navigate('/login');
   };
 
