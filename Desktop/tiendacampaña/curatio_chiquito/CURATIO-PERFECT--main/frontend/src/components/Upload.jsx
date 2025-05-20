@@ -40,8 +40,6 @@ function Upload() {
     setError(null);
     setSuccessMessage(null);
 
-    const file = files[0];
-
     // Get the current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
@@ -50,18 +48,27 @@ function Upload() {
       return;
     }
 
-    // Store file in a folder named after the user ID
-    const filePath = `${user.id}/${file.name}`;
+    let allSuccess = true;
+    let errorMessages = [];
 
-    // Upload to Supabase Storage
-    const { data, error: uploadError } = await supabase.storage
-      .from('userfiles')
-      .upload(filePath, file);
+    // Subir todos los archivos seleccionados
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const filePath = `${user.id}/${file.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from('userfiles')
+        .upload(filePath, file);
 
-    if (uploadError) {
-      setError(uploadError.message || 'Upload failed');
+      if (uploadError) {
+        allSuccess = false;
+        errorMessages.push(`${file.name}: ${uploadError.message}`);
+      }
+    }
+
+    if (allSuccess) {
+      setSuccessMessage('Todos los archivos se subieron correctamente');
     } else {
-      setSuccessMessage('File uploaded and processed successfully');
+      setError('Algunos archivos no se subieron:\n' + errorMessages.join('\n'));
     }
     setUploading(false);
   };
@@ -89,7 +96,7 @@ function Upload() {
             ref={inputRef} 
             type="file" 
             className="hidden" 
-            multiple={false} 
+            multiple={true} 
             onChange={handleChange} 
             accept=".xlsx,.csv,.ods" 
           />
