@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import Sidebar from './Sidebar';
+import { supabase } from '../services/supabaseClient';
 
 function Upload() {
   const [dragActive, setDragActive] = useState(false);
@@ -40,26 +41,29 @@ function Upload() {
     setSuccessMessage(null);
 
     const file = files[0];
-    const formData = new FormData();
-    formData.append('file', file);
 
-    try {
-      const response = await fetch('http://localhost:3000/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.error || 'Upload failed');
-      }
-
-      setSuccessMessage(result.message || 'File uploaded and processed successfully');
-    } catch (err) {
-      setError(err.message || 'An error occurred during upload');
-    } finally {
+    // Get the current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      setError('User not authenticated');
       setUploading(false);
+      return;
     }
+
+    // Store file in a folder named after the user ID
+    const filePath = `${user.id}/${file.name}`;
+
+    // Upload to Supabase Storage
+    const { data, error: uploadError } = await supabase.storage
+      .from('userfiles')
+      .upload(filePath, file);
+
+    if (uploadError) {
+      setError(uploadError.message || 'Upload failed');
+    } else {
+      setSuccessMessage('File uploaded and processed successfully');
+    }
+    setUploading(false);
   };
 
   const onButtonClick = () => {
