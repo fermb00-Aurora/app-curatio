@@ -1,6 +1,6 @@
 [build]
   base = "curatio_chiquito/CURATIO-PERFECT--main"
-  command = "npm install vite && npm run build"
+  command = "npm install -g vite && npx vite build"
   publish = "dist"
 
 [[redirects]]
