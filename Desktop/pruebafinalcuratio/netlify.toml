@@ -1,6 +1,6 @@
 [build]
-  command = "npm run build"
-  publish = "dist"
+  command = "cd CURATIO.SOLO.FALTA.SUPABASE-main && npm install && npm run build"
+  publish = "CURATIO.SOLO.FALTA.SUPABASE-main/dist"
   base = "."
 
 [[redirects]]
