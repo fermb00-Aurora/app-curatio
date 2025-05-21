@@ -10,6 +10,8 @@ import { useDataContext } from "@/contexts/DataContext";
 import { saveTransactionsData, saveCategoriesData } from "@/utils/dataStorage";
 import { readSpreadsheetFile } from "@/utils/fileConverter";
 import { processTransactionsFile, processCategoriesFile } from "@/utils/dataProcessor";
+import { clearAllData } from "@/utils/clearData";
+import { Trash as TrashIcon } from "lucide-react";
 import {
   Table,
   TableHeader,
@@ -18,8 +20,6 @@ import {
   TableRow,
   TableCell
 } from "@/components/ui/table";
-import { clearAllData } from '../utils/clearData';
-import { Trash as TrashIcon } from 'lucide-react';
 
 interface UploadedFile {
   file: File;
