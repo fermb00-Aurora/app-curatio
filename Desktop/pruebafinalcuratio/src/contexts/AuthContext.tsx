@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../../frontend/src/services/supabaseClient';
 
 type AuthContextType = {
   isAuthenticated: boolean;
@@ -21,36 +22,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   
-  // Check localStorage on initial load
+  // Check Supabase session on initial load
   useEffect(() => {
-    const authStatus = localStorage.getItem('isAuthenticated');
-    if (authStatus === 'true') {
-      setIsAuthenticated(true);
-    } else {
-      navigate('/login');
-    }
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setIsAuthenticated(!!session);
+      if (!session) navigate('/login');
+    };
+    checkSession();
+    // Listen for auth changes
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAuthenticated(!!session);
+      if (!session) navigate('/login');
+    });
+    return () => {
+      listener?.subscription.unsubscribe();
+    };
   }, [navigate]);
 
   const login = async (email: string, password: string) => {
-    console.log("AuthContext: login called with email:", email);
-    // Simulate API call with timeout
-    return new Promise<{ success: boolean; error?: string }>((resolve) => {
-      setTimeout(() => {
-        if (email === 'ovidalreig@gmail.com' && password === 'OviFer123') {
-          localStorage.setItem('isAuthenticated', 'true');
-          setIsAuthenticated(true);
-          console.log("AuthContext: login success, setting isAuthenticated true");
-          resolve({ success: true });
-        } else {
-          console.error("AuthContext: login failed for email:", email);
-          resolve({ success: false, error: 'Invalid email or password. Please try again.' });
-        }
-      }, 800);
-    });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    setIsAuthenticated(true);
+    return { success: true };
   };
 
-  const logout = () => {
-    localStorage.removeItem('isAuthenticated');
+  const logout = async () => {
+    await supabase.auth.signOut();
     setIsAuthenticated(false);
     navigate('/login');
   };
