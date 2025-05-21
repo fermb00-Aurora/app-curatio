@@ -11,6 +11,8 @@ import { useDataContext } from "@/contexts/DataContext";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { mergeTransactionsData, mergeCategoriesData } from "@/utils/dataStorage";
+import axios from 'axios';
+import { supabase } from '@frontend/services/supabaseClient';
 
 interface ChunkedUploaderProps {
   type: "transactions" | "categories";
@@ -29,6 +31,7 @@ export const ChunkedUploader: React.FC<ChunkedUploaderProps> = ({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [incrementalMode, setIncrementalMode] = useState(true);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [fileProgress, setFileProgress] = useState<Record<string, { progress: number; status: string; error?: string }>>({});
 
   const handleUpload = async (file: File) => {
     setIsUploading(true);
@@ -117,49 +120,88 @@ export const ChunkedUploader: React.FC<ChunkedUploaderProps> = ({
     }
   };
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop: async (files) => {
-      // Handle single or multiple files based on allowMultiple prop
-      const filesToProcess = allowMultiple ? files : [files[0]];
-      
-      for (const file of filesToProcess) {
-        if (!file) continue;
-        
-        // For transactions, only allow Excel
-        const isExcel = file.name.endsWith('.xlsx');
-        const isOds = file.name.endsWith('.ods');
-        
-        // Check file format based on type
-        if (type === "transactions") {
-          if (!isExcel) {
-            toast({
-              title: t("common.error"),
-              description: t("upload.transactionsExcelOnly"),
-              variant: "destructive"
-            });
-            continue;
-          }
-        } else {
-          // For categories, allow Excel and ODS
-          if (!isExcel && !isOds) {
-            toast({
-              title: t("common.error"),
-              description: t("upload.invalidFormat"),
-              variant: "destructive"
-            });
-            continue;
-          }
-        }
-        
-        await handleUpload(file);
-        
-        // If not allowing multiple, process only the first file
-        if (!allowMultiple) break;
+  const validateFiles = (files: File[]) => {
+    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+    if (files.length > 10) throw new Error('Máximo 10 archivos permitidos');
+    if (totalSize > 100 * 1024 * 1024) throw new Error('Tamaño total máximo permitido: 100MB');
+  };
+
+  const uploadToStorage = async (file: File, fileId: string) => {
+    const path = `${type}/${Date.now()}_${file.name}`;
+    setFileProgress(prev => ({ ...prev, [fileId]: { progress: 0, status: 'uploading' } }));
+    try {
+      const { data, error } = await supabase.storage
+        .from('userfiles')
+        .upload(path, file, {
+          onUploadProgress: (progress) => {
+            const percent = (progress.loaded / progress.total) * 100;
+            setFileProgress(prev => ({ ...prev, [fileId]: { ...prev[fileId], progress: percent } }));
+          },
+        });
+      if (error) throw error;
+      setFileProgress(prev => ({ ...prev, [fileId]: { ...prev[fileId], progress: 100, status: 'uploaded' } }));
+      return data.path;
+    } catch (error) {
+      setFileProgress(prev => ({ ...prev, [fileId]: { ...prev[fileId], status: 'error', error: error.message } }));
+      throw error;
+    }
+  };
+
+  const processAndSendMetadata = async (file: File, storagePath: string, fileId: string) => {
+    setFileProgress(prev => ({ ...prev, [fileId]: { ...prev[fileId], status: 'processing' } }));
+    try {
+      // Read and process file as before
+      const data = await readSpreadsheetFile(file, () => {});
+      const detectedType = detectFileType(data);
+      if (detectedType !== type) throw new Error('Tipo de archivo no coincide');
+      let processedData;
+      if (type === 'transactions') {
+        processedData = processTransactionsFile(data);
+      } else {
+        processedData = processCategoriesFile(data);
       }
-    },
+      // Send metadata to backend
+      await axios.post('/api/uploads', {
+        file_name: file.name,
+        file_type: file.type,
+        storage_path: storagePath,
+        size: file.size,
+        data_type: type,
+        is_incremental: incrementalMode,
+        processed_data: processedData
+      });
+      setFileProgress(prev => ({ ...prev, [fileId]: { ...prev[fileId], status: 'complete', progress: 100 } }));
+    } catch (error) {
+      setFileProgress(prev => ({ ...prev, [fileId]: { ...prev[fileId], status: 'error', error: error.message } }));
+      throw error;
+    }
+  };
+
+  const handleFiles = async (files: File[]) => {
+    try {
+      validateFiles(files);
+      const fileIds = files.map(() => Math.random().toString(36).substr(2, 9));
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const fileId = fileIds[i];
+        try {
+          const storagePath = await uploadToStorage(file, fileId);
+          await processAndSendMetadata(file, storagePath, fileId);
+          toast({ title: t('common.success'), description: `${file.name} procesado correctamente` });
+        } catch (error) {
+          toast({ title: t('common.error'), description: `Error procesando ${file.name}: ${error.message}`, variant: 'destructive' });
+        }
+      }
+    } catch (error) {
+      toast({ title: t('common.error'), description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop: (acceptedFiles) => handleFiles(acceptedFiles),
     disabled: isUploading,
     multiple: allowMultiple,
-    accept: type === "transactions" 
+    accept: type === 'transactions'
       ? { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] }
       : {
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
@@ -190,12 +232,24 @@ export const ChunkedUploader: React.FC<ChunkedUploaderProps> = ({
         <div className="flex flex-col items-center justify-center">
           {isUploading ? (
             <div className="w-full space-y-4">
-              <Progress value={uploadProgress} className="h-2" />
-              <p className="text-sm text-gray-500">
-                {uploadProgress < 100 
-                  ? `${t("upload.uploading")} ${Math.round(uploadProgress)}%`
-                  : t("upload.processing")}
-              </p>
+              {/* Progress Indicators */}
+              {Object.entries(fileProgress).map(([fileId, info]) => (
+                <div key={fileId} className="border rounded p-4 my-2">
+                  <div className="flex justify-between mb-2">
+                    <span className="font-medium">{info.status === 'error' ? '❌' : info.status === 'complete' ? '✅' : '⬆️'} {fileId}</span>
+                    <span className="text-sm text-gray-500">
+                      {info.status === 'uploading' ? 'Subiendo...' :
+                       info.status === 'processing' ? 'Procesando...' :
+                       info.status === 'complete' ? 'Completado' :
+                       'Error'}
+                    </span>
+                  </div>
+                  <Progress value={info.progress} className="h-2" />
+                  {info.error && (
+                    <p className="text-sm text-red-500 mt-2">{info.error}</p>
+                  )}
+                </div>
+              ))}
             </div>
           ) : (
             <>
