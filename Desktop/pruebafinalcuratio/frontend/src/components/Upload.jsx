@@ -39,9 +39,10 @@ function Upload() {
     setError(null);
     setSuccessMessage(null);
 
-    const file = files[0];
     const formData = new FormData();
-    formData.append('file', file);
+    for (const file of files) {
+      formData.append('files', file);
+    }
 
     try {
       const response = await fetch('http://localhost:3000/upload', {
@@ -54,7 +55,7 @@ function Upload() {
         throw new Error(result.error || 'Upload failed');
       }
 
-      setSuccessMessage(result.message || 'File uploaded and processed successfully');
+      setSuccessMessage('Files uploaded and processed successfully');
     } catch (err) {
       setError(err.message || 'An error occurred during upload');
     } finally {
@@ -85,7 +86,7 @@ function Upload() {
             ref={inputRef} 
             type="file" 
             className="hidden" 
-            multiple={false} 
+            multiple={true} 
             onChange={handleChange} 
             accept=".xlsx,.csv,.ods" 
           />
@@ -96,7 +97,7 @@ function Upload() {
             onClick={onButtonClick}
             disabled={uploading}
           >
-            {uploading ? 'Uploading...' : 'Upload a file'}
+            {uploading ? 'Uploading...' : 'Upload files'}
           </button>
           <p className="mt-4 text-sm text-gray-500">Supported file types: .xlsx, .csv, .ods</p>
         </form>
