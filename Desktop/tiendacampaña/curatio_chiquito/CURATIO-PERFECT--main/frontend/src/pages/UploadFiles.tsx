@@ -1,0 +1,1 @@
+import { clearAllData } from '../utils/clearData'; 
