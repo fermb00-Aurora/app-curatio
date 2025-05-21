@@ -1,5 +1,4 @@
 [build]
-  base = "CURATIO.SOLO.FALTA.SUPABASE-main"
   command = "npm install && npm run build"
   publish = "dist"
 
