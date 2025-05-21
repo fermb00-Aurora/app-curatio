@@ -128,11 +128,7 @@
     "incrementalModeDescription": "Añadir nuevos datos a registros existentes",
     "multipleFilesAllowed": "Múltiples archivos permitidos",
     "allowedTransactionsFormats": "Excel",
-    "allowedCategoriesFormats": "Excel, ODS",
-    "clearData": "Borrar todos los datos",
-    "clearDataConfirmation": "¿Estás seguro de que quieres borrar todos los datos? Esta acción no se puede deshacer.",
-    "clearDataSuccess": "Todos los datos han sido borrados correctamente",
-    "clearDataError": "Hubo un error al borrar los datos"
+    "allowedCategoriesFormats": "Excel, ODS"
   },
   "chatbot": {
     "title": "Asistente de Análisis",

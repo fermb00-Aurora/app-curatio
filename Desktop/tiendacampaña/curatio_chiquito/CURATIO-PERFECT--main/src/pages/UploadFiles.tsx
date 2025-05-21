@@ -10,8 +10,6 @@ import { useDataContext } from "@/contexts/DataContext";
 import { saveTransactionsData, saveCategoriesData } from "@/utils/dataStorage";
 import { readSpreadsheetFile } from "@/utils/fileConverter";
 import { processTransactionsFile, processCategoriesFile } from "@/utils/dataProcessor";
-import { clearAllData } from "@/utils/clearData";
-import { Trash as TrashIcon } from "lucide-react";
 import {
   Table,
   TableHeader,
@@ -136,28 +134,6 @@ const UploadFiles = () => {
       title: t("common.info"),
       description: t("upload.uploadCancelled"),
     });
-  };
-
-  const handleClearData = async () => {
-    if (window.confirm(t('upload.clearDataConfirmation'))) {
-      const success = await clearAllData();
-      if (success) {
-        toast({
-          title: t('common.success'),
-          description: t('upload.clearDataSuccess'),
-        });
-        // Reset the component state
-        setPreviewData(null);
-        setCurrentFile(null);
-        setUploadedFiles([]);
-      } else {
-        toast({
-          title: t('common.error'),
-          description: t('upload.clearDataError'),
-          variant: 'destructive',
-        });
-      }
-    }
   };
 
   const renderTransactionsPreview = (data: any[]) => (
@@ -353,17 +329,6 @@ const UploadFiles = () => {
               </Button>
             </div>
           )}
-
-          <div className="mt-6 flex justify-end space-x-4">
-            <Button
-              variant="destructive"
-              onClick={handleClearData}
-              className="flex items-center gap-2"
-            >
-              <TrashIcon className="h-4 w-4" />
-              {t('upload.clearData')}
-            </Button>
-          </div>
         </div>
       </div>
     </MainLayout>
