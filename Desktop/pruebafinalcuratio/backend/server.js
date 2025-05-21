@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const { createClient } = require('@supabase/supabase-js');
+const jwt = require('jsonwebtoken');
 const path = require('path');
 const fs = require('fs');
 const { exec } = require('child_process');
@@ -27,32 +28,46 @@ fs.mkdirSync('uploads', { recursive: true });
 // API Endpoints
 app.post('/upload', upload.array('files'), async (req, res) => {
   try {
+    // 1. Extract JWT from Authorization header
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.replace('Bearer ', '');
+    if (!token) return res.status(401).json({ error: 'No token provided' });
+
+    // 2. Decode JWT to get user_id (sub)
+    let userId;
+    try {
+      const decoded = jwt.decode(token);
+      userId = decoded.sub;
+    } catch (err) {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+
     const results = [];
     for (const file of req.files) {
-      // 1. Upload to Supabase Storage
+      // 3. Store file in user-specific folder
       const { data: storageData, error: storageError } = await supabase.storage
         .from('uploads')
-        .upload(`user-uploads/${Date.now()}-${file.originalname}`, file.buffer, {
+        .upload(`user-uploads/${userId}/${Date.now()}-${file.originalname}`, file.buffer, {
           contentType: file.mimetype,
           upsert: true,
         });
       if (storageError) throw storageError;
 
-      // 2. Determine file type
+      // 4. Determine file type
       let fileType = null;
       if (file.originalname.toLowerCase().includes('venta')) fileType = 'ventas';
       else if (file.originalname.toLowerCase().includes('catalogo')) fileType = 'catalogo';
       else fileType = 'unknown';
 
-      // 3. Parse/process file (placeholder)
+      // 5. Parse/process file (placeholder)
       let processedData = [];
       // You can add your actual processing logic here
 
-      // 4. Insert into uploaded_files
+      // 6. Insert into uploaded_files with user_id
       const { data: uploadedFile, error: uploadFileError } = await supabase
         .from('uploaded_files')
         .insert([{
-          user_id: null, // Set user_id if you have auth
+          user_id: userId,
           file_type: fileType,
           storage_path: storageData.path,
           processed_data: processedData,
@@ -60,17 +75,6 @@ app.post('/upload', upload.array('files'), async (req, res) => {
         .select()
         .single();
       if (uploadFileError) throw uploadFileError;
-
-      // 5. Insert processed data into ventas or catalogo (placeholder)
-      // if (fileType === 'ventas' && processedData.length > 0) {
-      //   for (const row of processedData) {
-      //     await supabase.from('ventas').insert([{ ...row, uploaded_file_id: uploadedFile.id }]);
-      //   }
-      // } else if (fileType === 'catalogo' && processedData.length > 0) {
-      //   for (const row of processedData) {
-      //     await supabase.from('catalogo').insert([{ ...row, uploaded_file_id: uploadedFile.id }]);
-      //   }
-      // }
 
       results.push({
         filename: file.originalname,

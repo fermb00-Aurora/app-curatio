@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import Sidebar from './Sidebar';
+import { supabase } from '../services/supabaseClient';
 
 function Upload() {
   const [dragActive, setDragActive] = useState(false);
@@ -45,9 +46,14 @@ function Upload() {
     }
 
     try {
+      const session = supabase.auth.session();
+      const accessToken = session?.access_token;
       const response = await fetch('http://localhost:3000/upload', {
         method: 'POST',
         body: formData,
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
       });
 
       const result = await response.json();
