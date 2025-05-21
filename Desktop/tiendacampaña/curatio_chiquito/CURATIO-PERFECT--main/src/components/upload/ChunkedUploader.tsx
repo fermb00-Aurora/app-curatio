@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { mergeTransactionsData, mergeCategoriesData } from "@/utils/dataStorage";
 import axios from 'axios';
-import { supabase } from '@frontend/services/supabaseClient';
+import { supabase } from '../../../frontend/src/services/supabaseClient';
 
 interface ChunkedUploaderProps {
   type: "transactions" | "categories";
