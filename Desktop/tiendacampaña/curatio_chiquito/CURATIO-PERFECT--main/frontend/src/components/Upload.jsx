@@ -7,6 +7,7 @@ function Upload() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
+  const [pendingFiles, setPendingFiles] = useState([]);
   const inputRef = useRef(null);
 
   const handleDrag = (e) => {
@@ -24,14 +25,14 @@ function Upload() {
     e.stopPropagation();
     setDragActive(false);
     if (e.dataTransfer.files.length > 0) {
-      handleFiles(e.dataTransfer.files);
+      setPendingFiles(prev => [...prev, ...Array.from(e.dataTransfer.files)]);
     }
   };
 
   const handleChange = (e) => {
     e.preventDefault();
     if (e.target.files.length > 0) {
-      handleFiles(e.target.files);
+      setPendingFiles(prev => [...prev, ...Array.from(e.target.files)]);
     }
   };
 
@@ -51,14 +52,12 @@ function Upload() {
     let allSuccess = true;
     let errorMessages = [];
 
-    // Subir todos los archivos seleccionados
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const filePath = `${user.id}/${file.name}`;
       const { error: uploadError } = await supabase.storage
         .from('userfiles')
         .upload(filePath, file);
-
       if (uploadError) {
         allSuccess = false;
         errorMessages.push(`${file.name}: ${uploadError.message}`);
@@ -67,6 +66,7 @@ function Upload() {
 
     if (allSuccess) {
       setSuccessMessage('Todos los archivos se subieron correctamente');
+      setPendingFiles([]);
     } else {
       setError('Algunos archivos no se subieron:\n' + errorMessages.join('\n'));
     }
@@ -107,7 +107,20 @@ function Upload() {
             onClick={onButtonClick}
             disabled={uploading}
           >
-            {uploading ? 'Uploading...' : 'Upload a file'}
+            {uploading ? 'Seleccionar archivos...' : 'Seleccionar archivos'}
+          </button>
+          <ul className="mt-4 mb-4 text-left">
+            {pendingFiles.map((file, idx) => (
+              <li key={idx}>{file.name}</li>
+            ))}
+          </ul>
+          <button
+            className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
+            type="button"
+            onClick={() => handleFiles(pendingFiles)}
+            disabled={uploading || pendingFiles.length === 0}
+          >
+            {uploading ? 'Subiendo...' : 'Subir todos'}
           </button>
           <p className="mt-4 text-sm text-gray-500">Supported file types: .xlsx, .csv, .ods</p>
         </form>
