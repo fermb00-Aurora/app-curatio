@@ -25,6 +25,9 @@ import {
   TableRow,
   TableCell
 } from "@/components/ui/table";
+import * as XLSX from 'xlsx';
+import { supabase } from '@/services/supabaseClient';
+import { Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 
 interface UploadedFile {
   file: File;
@@ -39,6 +42,10 @@ const UploadFiles = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [previewData, setPreviewData] = useState<any[] | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [pendingInsertData, setPendingInsertData] = useState<any[]>([]);
+  const [pendingFileType, setPendingFileType] = useState<null | 'transactions' | 'categories'>(null);
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     refreshData();
@@ -49,38 +56,87 @@ const UploadFiles = () => {
     setUploadedFiles([]);
   }, [fileType]);
 
-  const handleFileUpload = async (file: File, filePreviewData: any[]) => {
+  const parseFile = async (file: File) => {
+    return new Promise<any[]>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const data = new Uint8Array(e.target.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const json = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+        resolve(json);
+      };
+      reader.onerror = (e) => reject(e);
+      reader.readAsArrayBuffer(file);
+    });
+  };
+
+  const checkDuplicates = async (data: any[], type: 'transactions' | 'categories') => {
+    let existing = [];
+    if (type === 'transactions') {
+      const { data: existingData } = await supabase.from('transactions').select('codigo');
+      existing = existingData?.map((row: any) => row.codigo) || [];
+      return data.some(row => existing.includes(row.codigo));
+    } else {
+      const { data: existingData } = await supabase.from('categories').select('codigo');
+      existing = existingData?.map((row: any) => row.codigo) || [];
+      return data.some(row => existing.includes(row.codigo));
+    }
+  };
+
+  const handleFileUpload = async (file: File) => {
     if (!fileType) {
-      toast({
-        title: t("common.error"),
-        description: t("upload.selectTypeFirst"),
-        variant: "destructive",
-      });
+      toast({ title: t("common.error"), description: t("upload.selectTypeFirst"), variant: "destructive" });
       return;
     }
-
     setIsUploading(true);
-
+    setProgress(10);
     try {
-      setPreviewData(filePreviewData);
-      setUploadedFiles(prev => [...prev, { file, previewData: filePreviewData }]);
-      
+      const parsedData = await parseFile(file);
+      setProgress(40);
+      // Only show top 10 rows in preview
+      setPreviewData(parsedData.slice(0, 10));
+      setUploadedFiles([{ file, previewData: parsedData.slice(0, 10) }]);
+      // Check for duplicates
+      const hasDuplicates = await checkDuplicates(parsedData, fileType);
+      setProgress(60);
+      if (hasDuplicates) {
+        setPendingInsertData(parsedData);
+        setPendingFileType(fileType);
+        setShowDuplicateModal(true);
+        setIsUploading(false);
+        return;
+      } else {
+        await insertData(parsedData, fileType);
+      }
+      setProgress(100);
+      toast({ title: t("common.success"), description: t("upload.fileProcessedSuccess") });
       refreshData();
-      
-      toast({
-        title: t("common.success"),
-        description: t("upload.fileProcessedSuccess"),
-      });
     } catch (error) {
       console.error("Error processing file:", error);
-      toast({
-        title: t("common.error"),
-        description: t("upload.fileProcessError"),
-        variant: "destructive",
-      });
+      toast({ title: t("common.error"), description: t("upload.fileProcessError"), variant: "destructive" });
     } finally {
       setIsUploading(false);
+      setProgress(0);
     }
+  };
+
+  const insertData = async (data: any[], type: 'transactions' | 'categories') => {
+    setIsUploading(true);
+    setProgress(80);
+    if (type === 'transactions') {
+      await supabase.from('transactions').upsert(data, { onConflict: 'codigo' });
+    } else {
+      await supabase.from('categories').upsert(data, { onConflict: 'codigo' });
+    }
+    setProgress(100);
+    setIsUploading(false);
+    setShowDuplicateModal(false);
+    setPendingInsertData([]);
+    setPendingFileType(null);
+    toast({ title: t("common.success"), description: t("upload.fileProcessedSuccess") });
+    refreshData();
   };
 
   const handleInsertData = () => {
@@ -299,6 +355,20 @@ const UploadFiles = () => {
           )}
         </div>
       </div>
+      <Dialog open={showDuplicateModal} onClose={() => setShowDuplicateModal(false)}>
+        <DialogTitle>{t('upload.duplicateTitle') || 'Duplicados encontrados'}</DialogTitle>
+        <DialogContent>{t('upload.duplicateDescription') || 'Se han encontrado datos duplicados. ¿Deseas sobrescribir los datos existentes con la nueva información?'}</DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowDuplicateModal(false)}>{t('common.cancel') || 'Cancelar'}</Button>
+          <Button onClick={async () => { await insertData(pendingInsertData, pendingFileType!); }}>{t('common.overwrite') || 'Sobrescribir'}</Button>
+        </DialogActions>
+      </Dialog>
+      {isUploading && (
+        <div style={{ width: '100%', margin: '10px 0' }}>
+          <div style={{ width: `${progress}%`, height: '8px', background: '#3b82f6', borderRadius: '4px', transition: 'width 0.3s' }} />
+          <div style={{ fontSize: '12px', color: '#666' }}>{`Procesando... (${progress}%)`}</div>
+        </div>
+      )}
     </MainLayout>
   );
 };
