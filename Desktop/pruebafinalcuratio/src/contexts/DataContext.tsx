@@ -6,7 +6,6 @@ import {
   getDataStore, 
   initializeDataStore,
   filterDataByDateRange,
-  STORAGE_KEYS
 } from '@/utils/dataStorage';
 
 interface DataContextType {
@@ -71,16 +70,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     console.log("DataContext initialized, refreshing data");
     refreshData();
-
-    const handleStorageChange = () => {
-      console.log("Storage change detected, refreshing data");
-      refreshData();
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
   }, []);
 
   // Filter transactions whenever dateRange changes
