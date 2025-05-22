@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { useTranslation } from 'react-i18next';
@@ -13,7 +12,7 @@ import {
 interface DataContextType {
   dataStore: DataStore;
   filteredTransactions: Transaction[];
-  refreshData: () => void;
+  refreshData: () => Promise<void>;
   isLoading: boolean;
   setDateRange: (start: Date, end: Date) => void;
   dateRange: {
@@ -34,13 +33,19 @@ export const useDataContext = () => {
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { t } = useTranslation();
-  const [dataStore, setDataStore] = useState<DataStore>(() => initializeDataStore());
+  const [dataStore, setDataStore] = useState<DataStore>({ 
+    transactions: [], 
+    categories: [], 
+    availableDates: [], 
+    uniqueCategories: [],
+    lastUpdated: { transactions: null, categories: null }
+  });
   const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
   const [dateRange, setDateRangeState] = useState(() => ({
     startDate: new Date(2025, 2, 1),
     endDate: new Date(2025, 2, 31)
   }));
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const addTranslations = () => {
@@ -96,25 +101,23 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [dataStore.transactions, dateRange]);
 
-  const refreshData = () => {
-    console.log("Refreshing data...");
-    setIsLoading(true);
+  const refreshData = async () => {
     try {
-      const rawData = localStorage.getItem(STORAGE_KEYS.transactions);
-      if (rawData) {
-        console.log(`Retrieved ${JSON.parse(rawData).length} transactions from localStorage`);
-      }
+      setIsLoading(true);
+      const newDataStore = await getDataStore();
+      setDataStore(newDataStore);
       
-      const freshData = getDataStore();
-      console.log(`Retrieved fresh data: ${freshData.transactions.length} transactions`);
-      setDataStore(freshData);
-      
-      // Filtering will happen in the useEffect
+      const filtered = filterDataByDateRange(
+        newDataStore.transactions,
+        dateRange.startDate,
+        dateRange.endDate
+      );
+      setFilteredTransactions(filtered);
     } catch (error) {
       console.error('Error refreshing data:', error);
       toast({
-        title: t('common.error'),
-        description: t('upload.failedToRefreshData', 'Failed to refresh data'),
+        title: t('errors.dataRefreshFailed'),
+        description: t('errors.tryAgain'),
         variant: 'destructive',
       });
     } finally {
@@ -123,8 +126,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const setDateRange = (startDate: Date, endDate: Date) => {
-    console.log(`Setting date range: ${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`);
     setDateRangeState({ startDate, endDate });
+    const filtered = filterDataByDateRange(
+      dataStore.transactions,
+      startDate,
+      endDate
+    );
+    setFilteredTransactions(filtered);
   };
 
   console.log("DataProvider rendering with", filteredTransactions.length, "filtered transactions");
