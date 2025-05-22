@@ -15,6 +15,7 @@ import {
   mergeTransactionsData, 
   mergeCategoriesData 
 } from "@/utils/dataStorage";
+import { clearAllData } from "@/utils/storage/baseStorage";
 import { readSpreadsheetFile } from "@/utils/fileConverter";
 import { processTransactionsFile, processCategoriesFile } from "@/utils/dataProcessor";
 import {
@@ -28,6 +29,7 @@ import {
 import * as XLSX from 'xlsx';
 import { supabase } from '@/services/supabaseClient';
 import { Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import CircularProgress from '@mui/material/CircularProgress';
 
 interface UploadedFile {
   file: File;
@@ -46,6 +48,7 @@ const UploadFiles = () => {
   const [pendingInsertData, setPendingInsertData] = useState<any[]>([]);
   const [pendingFileType, setPendingFileType] = useState<null | 'transactions' | 'categories'>(null);
   const [progress, setProgress] = useState(0);
+  const BATCH_SIZE = 500;
 
   useEffect(() => {
     refreshData();
@@ -122,14 +125,22 @@ const UploadFiles = () => {
     }
   };
 
+  const batchUpsert = async (data: any[], type: 'transactions' | 'categories') => {
+    for (let i = 0; i < data.length; i += BATCH_SIZE) {
+      const batch = data.slice(i, i + BATCH_SIZE);
+      if (type === 'transactions') {
+        await supabase.from('transactions').upsert(batch, { onConflict: 'codigo' });
+      } else {
+        await supabase.from('categories').upsert(batch, { onConflict: 'codigo' });
+      }
+      setProgress(80 + Math.round((i / data.length) * 20));
+    }
+  };
+
   const insertData = async (data: any[], type: 'transactions' | 'categories') => {
     setIsUploading(true);
     setProgress(80);
-    if (type === 'transactions') {
-      await supabase.from('transactions').upsert(data, { onConflict: 'codigo' });
-    } else {
-      await supabase.from('categories').upsert(data, { onConflict: 'codigo' });
-    }
+    await batchUpsert(data, type);
     setProgress(100);
     setIsUploading(false);
     setShowDuplicateModal(false);
@@ -158,6 +169,16 @@ const UploadFiles = () => {
     setUploadedFiles([]);
         
     navigate(fileType === "transactions" ? "/transactions" : "/products");
+  };
+
+  const handleClearAllData = async () => {
+    setIsUploading(true);
+    await clearAllData();
+    setIsUploading(false);
+    setPreviewData(null);
+    setUploadedFiles([]);
+    toast({ title: t('common.success'), description: t('upload.allDataCleared') });
+    refreshData();
   };
 
   const handleCancelUpload = () => {
@@ -339,17 +360,19 @@ const UploadFiles = () => {
               <Button
                 onClick={handleInsertData}
                 className="flex items-center gap-2"
+                disabled={isUploading}
               >
                 <FileUpIcon className="h-4 w-4" />
                 Insertar Datos
               </Button>
               <Button
-                onClick={handleCancelUpload}
+                onClick={handleClearAllData}
                 variant="destructive"
                 className="flex items-center gap-2"
+                disabled={isUploading}
               >
                 <XIcon className="h-4 w-4" />
-                Cancelar subida
+                Borrar todos los datos
               </Button>
             </div>
           )}
@@ -364,9 +387,12 @@ const UploadFiles = () => {
         </DialogActions>
       </Dialog>
       {isUploading && (
-        <div style={{ width: '100%', margin: '10px 0' }}>
-          <div style={{ width: `${progress}%`, height: '8px', background: '#3b82f6', borderRadius: '4px', transition: 'width 0.3s' }} />
-          <div style={{ fontSize: '12px', color: '#666' }}>{`Procesando... (${progress}%)`}</div>
+        <div style={{ width: '100%', margin: '10px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <CircularProgress size={24} />
+          <div style={{ width: '100%' }}>
+            <div style={{ width: `${progress}%`, height: '8px', background: '#3b82f6', borderRadius: '4px', transition: 'width 0.3s' }} />
+            <div style={{ fontSize: '12px', color: '#666' }}>{`Procesando... (${progress}%)`}</div>
+          </div>
         </div>
       )}
     </MainLayout>
