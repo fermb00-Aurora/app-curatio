@@ -1,5 +1,4 @@
-
-import { STORAGE_KEYS } from './constants';
+import { supabase } from '@/services/supabaseClient';
 import type { Transaction, Category } from '../dataTypes';
 
 /**
@@ -11,54 +10,108 @@ export interface LastUpdatedData {
 }
 
 /**
- * Get transactions data from localStorage
+ * Get transactions data from Supabase
  */
-export const getTransactionsData = (): Transaction[] => {
-  const data = localStorage.getItem(STORAGE_KEYS.transactions);
-  if (!data) {
-    console.log("No transactions data found in localStorage");
-    return [];
-  }
-  
+export const getTransactionsData = async (): Promise<Transaction[]> => {
   try {
-    const parsedData = JSON.parse(data);
-    console.log(`Retrieved ${parsedData.length} transactions from localStorage`);
-    return parsedData;
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      console.error("User not authenticated");
+      return [];
+    }
+
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error("Error fetching transactions:", error);
+      return [];
+    }
+
+    return data || [];
   } catch (error) {
-    console.error("Error parsing transactions data from localStorage:", error);
+    console.error("Error in getTransactionsData:", error);
     return [];
   }
 };
 
 /**
- * Get categories data from localStorage
+ * Get categories data from Supabase
  */
-export const getCategoriesData = (): Category[] => {
-  const data = localStorage.getItem(STORAGE_KEYS.categories);
-  if (!data) return [];
-  
+export const getCategoriesData = async (): Promise<Category[]> => {
   try {
-    return JSON.parse(data);
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      console.error("User not authenticated");
+      return [];
+    }
+
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error("Error fetching categories:", error);
+      return [];
+    }
+
+    return data || [];
   } catch (error) {
-    console.error("Error parsing categories data from localStorage:", error);
+    console.error("Error in getCategoriesData:", error);
     return [];
   }
 };
 
 /**
- * Get last updated data
+ * Get last updated data from Supabase
  */
-export const getLastUpdatedData = (): LastUpdatedData => {
-  const data = localStorage.getItem(STORAGE_KEYS.lastUpdated);
-  return data ? JSON.parse(data) : { transactions: null, categories: null };
+export const getLastUpdatedData = async (): Promise<LastUpdatedData> => {
+  try {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return { transactions: null, categories: null };
+    }
+
+    const { data: metadata, error } = await supabase
+      .from('user_metadata')
+      .select('last_updated')
+      .eq('user_id', user.id)
+      .single();
+
+    if (error || !metadata) {
+      return { transactions: null, categories: null };
+    }
+
+    return metadata.last_updated || { transactions: null, categories: null };
+  } catch (error) {
+    console.error("Error in getLastUpdatedData:", error);
+    return { transactions: null, categories: null };
+  }
 };
 
 /**
- * Clear all stored data
+ * Clear all stored data for the current user
  */
-export const clearAllData = (): void => {
-  localStorage.removeItem(STORAGE_KEYS.transactions);
-  localStorage.removeItem(STORAGE_KEYS.categories);
-  localStorage.removeItem(STORAGE_KEYS.lastUpdated);
+export const clearAllData = async (): Promise<void> => {
+  try {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      console.error("User not authenticated");
+      return;
+    }
+
+    const promises = [
+      supabase.from('transactions').delete().eq('user_id', user.id),
+      supabase.from('categories').delete().eq('user_id', user.id),
+      supabase.from('user_metadata').delete().eq('user_id', user.id)
+    ];
+
+    await Promise.all(promises);
+  } catch (error) {
+    console.error("Error in clearAllData:", error);
+  }
 };
 

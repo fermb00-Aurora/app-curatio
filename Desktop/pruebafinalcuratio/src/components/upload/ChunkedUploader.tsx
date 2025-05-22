@@ -3,19 +3,11 @@ import { useDropzone } from "react-dropzone";
 import { useTranslation } from "react-i18next";
 import { toast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
-import { readSpreadsheetFile, cleanupSourceFile } from "@/utils/fileConverter";
+import { readSpreadsheetFile } from "@/utils/fileConverter";
 import { detectFileType } from "@/utils/dataDetector";
 import { processTransactionsFile, processCategoriesFile } from "@/utils/dataProcessor";
-import { 
-  saveTransactionsData, 
-  saveCategoriesData, 
-  STORAGE_KEYS, 
-  getTransactionsData, 
-  getCategoriesData, 
-  mergeTransactionsData, 
-  mergeCategoriesData 
-} from "@/utils/dataStorage";
 import { useDataContext } from "@/contexts/DataContext";
+import { uploadToSupabase, validateFiles } from "@/utils/supabaseStorage";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 
@@ -42,21 +34,37 @@ export const ChunkedUploader: React.FC<ChunkedUploaderProps> = ({
     try {
       console.log(`Starting upload of ${file.name}, size: ${file.size} bytes`);
       
-      const data = await readSpreadsheetFile(file, (progress) => {
+      // First upload to Supabase
+      const uploadResult = await uploadToSupabase(file, type, (progress) => {
         setUploadProgress(progress);
+      });
+
+      if (!uploadResult.success) {
+        toast({ 
+          title: t("common.error"), 
+          description: uploadResult.error || t("upload.error"), 
+          variant: "destructive" 
+        });
+        return;
+      }
+
+      // Read and process the file
+      const data = await readSpreadsheetFile(file, (progress) => {
+        setUploadProgress(50 + (progress / 2)); // Adjust progress to account for upload
       });
       
       if (data.length === 0) {
-         toast({ title: t("common.warning"), description: t("upload.emptyFile"), variant: "default" });
-         setIsUploading(false);
-         return;
+        toast({ title: t("common.warning"), description: t("upload.emptyFile"), variant: "default" });
+        setIsUploading(false);
+        return;
       }
       console.log(`Read ${data.length} rows from file`);
 
       const detectedType = detectFileType(data);
       if (detectedType && detectedType !== type) {
         toast({ title: t("common.error"), description: t("upload.typeFileMismatch"), variant: "destructive" });
-        setIsUploading(false); return;
+        setIsUploading(false); 
+        return;
       }
 
       let processedData;
@@ -67,21 +75,7 @@ export const ChunkedUploader: React.FC<ChunkedUploaderProps> = ({
       }
       console.log(`Processed ${processedData.length} items for type ${type}`);
 
-      const storageKey = type === "transactions" ? STORAGE_KEYS.transactions : STORAGE_KEYS.categories;
-      const existingData = type === "transactions" ? getTransactionsData() : getCategoriesData();
-      let mergedData;
-      if (type === "transactions") {
-        mergedData = mergeTransactionsData(processedData, existingData as any);
-        await saveTransactionsData(mergedData, false);
-      } else {
-        mergedData = mergeCategoriesData(processedData, existingData as any);
-        await saveCategoriesData(mergedData, false);
-      }
-      console.log(`Merged and saved; now ${mergedData.length} data rows in ${storageKey}`);
-
       onUploadComplete(file, processedData.slice(0, 5));
-
-      cleanupSourceFile(fileInputRef.current);
 
     } catch (error) {
       console.error("Upload error:", error);
@@ -94,6 +88,17 @@ export const ChunkedUploader: React.FC<ChunkedUploaderProps> = ({
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: async (files) => {
+      // Validate files before processing
+      const validation = validateFiles(files);
+      if (!validation.valid) {
+        toast({ 
+          title: t("common.error"), 
+          description: validation.error || t("upload.error"), 
+          variant: "destructive" 
+        });
+        return;
+      }
+
       const filesToProcess = allowMultiple ? files : [files[0]];
       for (const file of filesToProcess) {
         if (!file) continue;

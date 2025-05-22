@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { supabase } from '@/services/supabaseClient';
 
 // Types for processed data
 export interface Transaction {
@@ -181,18 +182,54 @@ export const processCategoriesFile = (data: any[]): Category[] => {
   }));
 };
 
-// Save processed data to localStorage with proper naming
-export const saveProcessedData = (type: 'transactions' | 'categories', data: any[]) => {
-  const key = type === 'transactions' ? 'processed_transacciones' : 'processed_categorias';
-  localStorage.setItem(key, JSON.stringify(data));
-  return data;
+// Save processed data to Supabase with proper naming
+export const saveProcessedData = async (type: 'transactions' | 'categories', data: any[]) => {
+  try {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      console.error("User not authenticated");
+      return data;
+    }
+
+    const { error } = await supabase
+      .from(type)
+      .upsert(
+        data.map(item => ({
+          ...item,
+          user_id: user.id
+        }))
+      );
+
+    if (error) {
+      console.error(`Error saving ${type}:`, error);
+    }
+
+    return data;
+  } catch (error) {
+    console.error(`Error in saveProcessedData for ${type}:`, error);
+    return data;
+  }
 };
 
-// Get saved data from localStorage
-export const getProcessedData = (type: 'transactions' | 'categories') => {
-  const key = type === 'transactions' ? 'processed_transacciones' : 'processed_categorias';
-  const data = localStorage.getItem(key);
-  return data ? JSON.parse(data) : [];
+// Get saved data from Supabase
+export const getProcessedData = async (type: 'transactions' | 'categories') => {
+  try {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      console.error("User not authenticated");
+      return [];
+    }
+
+    const { data } = await supabase
+      .from(type)
+      .select()
+      .eq('user_id', user.id);
+
+    return data || [];
+  } catch (error) {
+    console.error(`Error in getProcessedData for ${type}:`, error);
+    return [];
+  }
 };
 
 // Filter data by date range
