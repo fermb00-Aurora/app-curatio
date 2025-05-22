@@ -1,4 +1,4 @@
-import { Suspense, useEffect } from "react";
+import { Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { DataProvider } from "@/contexts/DataContext";
@@ -12,23 +12,9 @@ import Sellers from "@/pages/Sellers";
 import UploadFiles from "@/pages/UploadFiles";
 import NotFound from "@/pages/NotFound";
 import Login from "@/pages/Login";
-import { STORAGE_KEYS } from "@/utils/dataStorage";
 
 function App() {
   const { t } = useTranslation();
-  
-  useEffect(() => {
-    console.log("App initialized, checking localStorage");
-    const transactionsData = localStorage.getItem(STORAGE_KEYS.transactions);
-    const categoriesData = localStorage.getItem(STORAGE_KEYS.categories);
-    
-    console.log("Local storage status:");
-    console.log(`- Transactions: ${transactionsData ? JSON.parse(transactionsData).length : 0} items`);
-    console.log(`- Categories: ${categoriesData ? JSON.parse(categoriesData).length : 0} items`);
-    
-    // Uncomment this line if you need to clear localStorage for debugging
-    // localStorage.clear();
-  }, []);
 
   return (
     <AuthProvider>
