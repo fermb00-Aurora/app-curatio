@@ -16,20 +16,22 @@ export const getTransactionsData = async (): Promise<Transaction[]> => {
   try {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
-      console.error("User not authenticated");
+      console.error("User not authenticated in getTransactionsData:", userError);
       return [];
     }
 
+    console.log("Fetching transactions for user:", user.id);
     const { data, error } = await supabase
       .from('transactions')
       .select('*')
       .eq('user_id', user.id);
 
     if (error) {
-      console.error("Error fetching transactions:", error);
+      console.error("Error fetching transactions:", error.message, error.details, error.hint);
       return [];
     }
 
+    console.log(`Retrieved ${data?.length || 0} transactions`);
     return data || [];
   } catch (error) {
     console.error("Error in getTransactionsData:", error);
@@ -44,20 +46,22 @@ export const getCategoriesData = async (): Promise<Category[]> => {
   try {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
-      console.error("User not authenticated");
+      console.error("User not authenticated in getCategoriesData:", userError);
       return [];
     }
 
+    console.log("Fetching categories for user:", user.id);
     const { data, error } = await supabase
       .from('categories')
       .select('*')
       .eq('user_id', user.id);
 
     if (error) {
-      console.error("Error fetching categories:", error);
+      console.error("Error fetching categories:", error.message, error.details, error.hint);
       return [];
     }
 
+    console.log(`Retrieved ${data?.length || 0} categories`);
     return data || [];
   } catch (error) {
     console.error("Error in getCategoriesData:", error);
