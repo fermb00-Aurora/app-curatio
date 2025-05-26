@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useTranslation } from "react-i18next";
 import MainLayout from "@/components/layout/MainLayout";
@@ -22,29 +21,48 @@ import {
   TableRow,
   TableCell
 } from "@/components/ui/table";
-import { useDataContext } from "@/contexts/DataContext";
+import { useData } from "@/contexts/DataContext";
 import { useTransactionTable } from "@/hooks/useTransactionTable";
 import { filterDataByDateRange } from "@/utils/dataStorage";
+import { formatCurrency } from "@/utils/formatters";
+import { Transaction } from "@/utils/dataTypes";
+
+const ITEMS_PER_PAGE = 15;
 
 const Transactions = () => {
   const { t } = useTranslation();
-  const { dataStore } = useDataContext();
-  const [dateFilteredTransactions, setDateFilteredTransactions] = React.useState(dataStore.transactions);
-  
-  const {
-    paginatedTransactions,
-    currentPage,
-    setCurrentPage,
-    totalPages,
-    searchTerm,
-    setSearchTerm,
-  } = useTransactionTable(dateFilteredTransactions);
+  const { filteredTransactions, categories, setDateRange } = useData();
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const [searchTerm, setSearchTerm] = React.useState("");
 
   const handleDateRangeChange = (range: { from: Date; to: Date }) => {
-    const filtered = filterDataByDateRange(dataStore.transactions, range.from, range.to);
-    setDateFilteredTransactions(filtered);
-    setCurrentPage(1);
+    setDateRange(range.from, range.to);
   };
+
+  const filteredData = React.useMemo(() => {
+    let filtered = [...filteredTransactions];
+
+    if (searchTerm) {
+      filtered = filtered.filter((transaction) =>
+        transaction.clienteDescripcion.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    return filtered;
+  }, [filteredTransactions, searchTerm]);
+
+  const paginatedData = React.useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredData.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredData, currentPage]);
+
+  const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
+
+  React.useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(1);
+    }
+  }, [totalPages, currentPage]);
 
   const getPageNumbers = () => {
     const pages = [];
@@ -84,7 +102,7 @@ const Transactions = () => {
           <h2 className="font-medium">{t("transactions.transactionsList")}</h2>
           <div className="flex items-center space-x-4">
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700 text-gray-100">
-              {t("transactions.total", { count: dateFilteredTransactions.length })}
+              {t("transactions.total", { count: filteredTransactions.length })}
             </span>
             <Link to="/upload">
               <Button 
@@ -116,60 +134,32 @@ const Transactions = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="px-2 py-2 w-24">Fecha</TableHead>
-                <TableHead className="px-2 py-2 w-20">Hora</TableHead>
-                <TableHead className="px-2 py-2 w-24">Vendedor</TableHead>
-                <TableHead className="px-2 py-2 w-24">Código</TableHead>
-                <TableHead className="px-2 py-2 w-48">{t("transactions.description")}</TableHead>
-                <TableHead className="px-2 py-2 w-20">Tipo</TableHead>
-                <TableHead className="px-2 py-2 w-16">TA</TableHead>
-                <TableHead className="px-2 py-2 w-16">Uni.</TableHead>
-                <TableHead className="px-2 py-2 text-right">P.Ant.</TableHead>
-                <TableHead className="px-2 py-2 w-24 text-right">P.V.P.</TableHead>
-                <TableHead className="px-2 py-2 w-24 text-right">Imp. Bruto</TableHead>
-                <TableHead className="px-2 py-2 text-right">Dto.</TableHead>
-                <TableHead className="px-2 py-2 w-24 text-right">Imp. Neto</TableHead>
-                <TableHead className="px-2 py-2 w-28">Número Doc.</TableHead>
-                <TableHead className="px-2 py-2 w-16">R.P.</TableHead>
-                <TableHead className="px-2 py-2 w-16">Fact.</TableHead>
-                <TableHead className="px-2 py-2 text-right">A Cuenta</TableHead>
-                <TableHead className="px-2 py-2 text-right">Entrega</TableHead>
-                <TableHead className="px-2 py-2 text-right">Devoluc.</TableHead>
-                <TableHead className="px-2 py-2 w-28">Tipo de Pago</TableHead>
+                <TableHead>{t("transactions.date")}</TableHead>
+                <TableHead>{t("transactions.code")}</TableHead>
+                <TableHead>{t("transactions.description")}</TableHead>
+                <TableHead>{t("transactions.units")}</TableHead>
+                <TableHead>{t("transactions.grossAmount")}</TableHead>
+                <TableHead>{t("transactions.netAmount")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedTransactions.length > 0 ? (
-                paginatedTransactions.map((transaction, index) => (
-                  <TableRow 
-                    key={`${transaction.numeroDoc || ''}-${index}`}
-                    className="hover:bg-gray-50"
-                  >
-                    <TableCell className="px-2 py-2 whitespace-nowrap">{transaction.fecha}</TableCell>
-                    <TableCell className="px-2 py-2 whitespace-nowrap">{transaction.hora}</TableCell>
-                    <TableCell className="px-2 py-2 whitespace-nowrap">{transaction.vendedor}</TableCell>
-                    <TableCell className="px-2 py-2 whitespace-nowrap">{transaction.codigo}</TableCell>
-                    <TableCell className="px-2 py-2 max-w-[150px] truncate">{transaction.clienteDescripcion}</TableCell>
-                    <TableCell className="px-2 py-2 whitespace-nowrap">{transaction.tipo}</TableCell>
-                    <TableCell className="px-2 py-2 whitespace-nowrap">{transaction.ta}</TableCell>
-                    <TableCell className="px-2 py-2 whitespace-nowrap">{transaction.unidades}</TableCell>
-                    <TableCell className="px-2 py-2 text-right whitespace-nowrap">{transaction.precioAnterior?.toFixed(2)}€</TableCell>
-                    <TableCell className="px-2 py-2 text-right whitespace-nowrap">{transaction.pvp?.toFixed(2)}€</TableCell>
-                    <TableCell className="px-2 py-2 text-right whitespace-nowrap">{transaction.importeBruto?.toFixed(2)}€</TableCell>
-                    <TableCell className="px-2 py-2 text-right whitespace-nowrap">{transaction.descuento?.toFixed(2)}€</TableCell>
-                    <TableCell className="px-2 py-2 text-right whitespace-nowrap">{transaction.importeNeto?.toFixed(2)}€</TableCell>
-                    <TableCell className="px-2 py-2 whitespace-nowrap">{transaction.numeroDoc}</TableCell>
-                    <TableCell className="px-2 py-2 whitespace-nowrap">{transaction.rp}</TableCell>
-                    <TableCell className="px-2 py-2 whitespace-nowrap">{transaction.fact}</TableCell>
-                    <TableCell className="px-2 py-2 text-right whitespace-nowrap">{transaction.aCuenta?.toFixed(2)}€</TableCell>
-                    <TableCell className="px-2 py-2 text-right whitespace-nowrap">{transaction.entrega?.toFixed(2)}€</TableCell>
-                    <TableCell className="px-2 py-2 text-right whitespace-nowrap">{transaction.devolucion?.toFixed(2)}€</TableCell>
-                    <TableCell className="px-2 py-2 whitespace-nowrap">{transaction.tipoPago}</TableCell>
-                  </TableRow>
-                ))
+              {paginatedData.length > 0 ? (
+                paginatedData.map((transaction, index) => {
+                  const category = categories.find(cat => cat.codigo === transaction.codigo);
+                  return (
+                    <TableRow key={`${transaction.numeroDoc}-${index}`}>
+                      <TableCell>{transaction.fecha}</TableCell>
+                      <TableCell>{transaction.codigo}</TableCell>
+                      <TableCell>{category?.descripcion || transaction.clienteDescripcion}</TableCell>
+                      <TableCell>{transaction.unidades}</TableCell>
+                      <TableCell>{formatCurrency(transaction.importeBruto)}</TableCell>
+                      <TableCell>{formatCurrency(transaction.importeNeto)}</TableCell>
+                    </TableRow>
+                  );
+                })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={9} className="h-24 text-center">
+                  <TableCell colSpan={6} className="h-24 text-center">
                     <div className="flex flex-col items-center justify-center py-8">
                       <FileUpIcon className="h-10 w-10 text-gray-400 mb-2" />
                       <p className="text-gray-500 mb-2">{t("common.noData")}</p>
