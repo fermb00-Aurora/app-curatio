@@ -6,8 +6,9 @@ import { Progress } from '@/components/ui/progress';
 import { readSpreadsheetFile } from '@/utils/fileConverter';
 import { detectFileType } from '@/utils/dataDetector';
 import { processTransactionsFile, processCategoriesFile } from '@/utils/dataProcessor';
-import { useDataContext } from '@/contexts/DataContext';
+import { useData } from '@/contexts/DataContext';
 import { uploadToSupabase } from '@/utils/supabaseStorage';
+import { saveProcessedData } from '@/utils/fileProcessing';
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 
@@ -23,7 +24,7 @@ export const ChunkedUploader: React.FC<ChunkedUploaderProps> = ({
   allowMultiple = false,
 }) => {
   const { t } = useTranslation();
-  const { refreshData } = useDataContext();
+  const { refreshData } = useData();
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
@@ -53,35 +54,39 @@ export const ChunkedUploader: React.FC<ChunkedUploaderProps> = ({
         }
 
         // Save processed data first
-        const savedData = await saveProcessedData(type, processedData);
-        if (!savedData) {
-          throw new Error('Failed to save processed data');
-        }
+        try {
+          const savedData = await saveProcessedData(type, processedData);
+          if (!savedData) {
+            throw new Error('Failed to save processed data');
+          }
 
-        // Then upload file to Supabase
-        const result = await uploadToSupabase(file, type, (progress) => {
-          setUploadProgress(progress);
-        });
+          // Then upload file to Supabase
+          const result = await uploadToSupabase(file, type, (progress) => {
+            setUploadProgress(progress);
+          });
 
-        if (!result.success) {
+          if (!result.success) {
+            throw new Error(result.error || 'Upload failed');
+          }
+
+          // Refresh data after successful upload and save
+          await refreshData();
+          
+          onUploadComplete(file, savedData);
+
+          toast({
+            title: t('upload.success'),
+            description: t('upload.fileProcessed'),
+          });
+        } catch (error) {
+          console.error('Error in upload process:', error);
           toast({
             title: t('upload.error'),
-            description: result.error,
+            description: error instanceof Error ? error.message : t('upload.unknownError'),
             variant: 'destructive',
           });
-          continue;
         }
-
-        // Refresh data after successful upload and save
-        await refreshData();
-        
-        onUploadComplete(file, savedData);
       }
-
-      toast({
-        title: t('upload.success'),
-        description: t('upload.fileProcessed'),
-      });
     } catch (error) {
       console.error('Error processing file:', error);
       toast({
