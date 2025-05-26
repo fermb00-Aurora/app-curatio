@@ -17,7 +17,7 @@ import {
   Sector,
 } from "recharts";
 import ChartWrapper from "@/components/chatbot/ChartWrapper";
-import { useDataContext } from "@/contexts/DataContext";
+import { useData } from "@/contexts/DataContext";
 import { trackMetric } from "@/utils/analytics";
 
 // Improved color palette for up to 14 categories, visually distinct
@@ -56,7 +56,7 @@ export const DashboardCharts: React.FC<DashboardChartsProps> = ({
   dateRange,
 }) => {
   const { t } = useTranslation();
-  const { filteredTransactions, dataStore } = useDataContext();
+  const { filteredTransactions, dataStore } = useData();
 
   // Compute ventas por categoría directly from filtered transactions
   const salesDistributionData = React.useMemo(() => {
@@ -88,6 +88,15 @@ export const DashboardCharts: React.FC<DashboardChartsProps> = ({
 
   // To avoid displaying zeros, filter out categories with no sales
   const filteredSalesData = salesDistributionData.filter(c => c.value > 0);
+
+  React.useEffect(() => {
+    trackMetric({
+      id: 'dashboard_charts_viewed',
+      value: salesDistributionData.length + salesByDayData.length + salesByCategoryData.length,
+      label: 'Total dashboard metrics',
+      type: 'number'
+    });
+  }, [salesDistributionData.length, salesByDayData.length, salesByCategoryData.length]);
 
   return (
     <div id="charts-section" className="grid grid-cols-2 gap-6 mb-6">
