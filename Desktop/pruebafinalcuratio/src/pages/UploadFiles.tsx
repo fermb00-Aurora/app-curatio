@@ -6,7 +6,7 @@ import { ChevronLeftIcon, FileUpIcon, XIcon } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { ChunkedUploader } from "@/components/upload/ChunkedUploader";
-import { useDataContext } from "@/contexts/DataContext";
+import { useData } from "@/contexts/DataContext";
 import { 
   saveTransactionsData, 
   saveCategoriesData, 
@@ -39,7 +39,7 @@ interface UploadedFile {
 const UploadFiles = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { refreshData } = useDataContext();
+  const { refreshData } = useData();
   const [fileType, setFileType] = useState<"transactions" | "categories" | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [previewData, setPreviewData] = useState<any[] | null>(null);
