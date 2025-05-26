@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../../frontend/src/services/supabaseClient';
+import { supabase } from '@/services/supabaseClient';
 
 type AuthContextType = {
   isAuthenticated: boolean;
