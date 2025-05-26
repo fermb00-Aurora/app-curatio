@@ -1,7 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import MainLayout from "@/components/layout/MainLayout";
-import { useDataContext } from "@/contexts/DataContext";
+import { useData } from "@/contexts/DataContext";
 import { FileText } from "lucide-react";
 import { exportToPdf } from "@/utils/pdfExport";
 import { Button } from "@/components/ui/button";
@@ -9,28 +9,81 @@ import { useDashboardData } from "@/hooks/useDashboardData";
 import { StatsCards } from "@/components/dashboard/StatsCards";
 import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
 import { DashboardTables } from "@/components/dashboard/DashboardTables";
+import { formatCurrency } from "@/utils/formatters";
 
 const Dashboard = () => {
   const { t } = useTranslation();
-  const { filteredTransactions, dataStore, setDateRange, dateRange } = useDataContext();
-  const { stats, salesByDayData, formatCurrency } = useDashboardData(filteredTransactions);
+  const { filteredTransactions, categories } = useData();
+  const { stats, salesByDayData, salesByCategoryData, formatCurrency: dashboardFormatCurrency } = useDashboardData(filteredTransactions);
   
   console.log(`Dashboard rendering with ${filteredTransactions.length} transactions`);
   console.log("Current stats:", stats);
 
-  const salesByCategoryData = React.useMemo(() => {
-    const categorySums: Record<string, number> = {};
-    filteredTransactions.forEach(item => {
-      const product = dataStore.categories.find(cat => cat.codigo === item.codigo);
-      const cat = product?.familia || t("common.unknown");
-      const importeNeto = Number(item.importeNeto) || 0;
-      if (!categorySums[cat]) categorySums[cat] = 0;
-      categorySums[cat] += importeNeto;
+  const handleExportPdf = async () => {
+    await exportToPdf("dashboard", "dashboard.pdf");
+  };
+
+  // Compute sales by day
+  const salesByDayData = React.useMemo(() => {
+    const sales = new Map<string, number>();
+    
+    filteredTransactions.forEach(transaction => {
+      const date = new Date(transaction.fecha).toLocaleDateString('es-ES', {
+        day: '2-digit',
+        month: '2-digit'
+      });
+      const currentTotal = sales.get(date) || 0;
+      sales.set(date, currentTotal + transaction.importeNeto);
     });
-    return Object.entries(categorySums)
-      .map(([name, value]) => ({ name, value }))
+
+    return Array.from(sales.entries())
+      .map(([fecha, importe]) => ({
+        fecha,
+        importe: Number(importe.toFixed(2))
+      }))
+      .sort((a, b) => {
+        const [dayA, monthA] = a.fecha.split('/');
+        const [dayB, monthB] = b.fecha.split('/');
+        return new Date(2024, parseInt(monthA) - 1, parseInt(dayA))
+          .getTime() - new Date(2024, parseInt(monthB) - 1, parseInt(dayB))
+          .getTime();
+      });
+  }, [filteredTransactions]);
+
+  // Compute sales by category
+  const salesByCategoryData = React.useMemo(() => {
+    const sales = new Map<string, number>();
+    
+    filteredTransactions.forEach(transaction => {
+      const category = categories.find(cat => cat.codigo === transaction.codigo);
+      const categoryName = category?.familia || t("common.unknown");
+      const currentTotal = sales.get(categoryName) || 0;
+      sales.set(categoryName, currentTotal + transaction.importeNeto);
+    });
+
+    return Array.from(sales.entries())
+      .map(([name, value]) => ({
+        name,
+        value: Number(value.toFixed(2))
+      }))
       .sort((a, b) => b.value - a.value);
-  }, [filteredTransactions, dataStore.categories, t]);
+  }, [filteredTransactions, categories, t]);
+
+  // Get date range from transactions
+  const dateRange = React.useMemo(() => {
+    if (filteredTransactions.length === 0) {
+      return {
+        startDate: new Date(),
+        endDate: new Date()
+      };
+    }
+
+    const dates = filteredTransactions.map(t => new Date(t.fecha));
+    return {
+      startDate: new Date(Math.min(...dates.map(d => d.getTime()))),
+      endDate: new Date(Math.max(...dates.map(d => d.getTime())))
+    };
+  }, [filteredTransactions]);
 
   const topSellingProducts = React.useMemo(() => {
     const productSales = new Map<string, {
@@ -125,17 +178,13 @@ const Dashboard = () => {
     setDateRange(range.from, range.to);
   };
 
-  const handleExportPDF = async () => {
-    await exportToPdf('dashboard-content', 'dashboard-report.pdf');
-  };
-
   return (
     <MainLayout
       title={t("dashboard.title")}
       rightHeaderContent={
         <Button 
           className="flex items-center"
-          onClick={handleExportPDF}
+          onClick={handleExportPdf}
         >
           <FileText className="h-5 w-5 mr-2" />
           {t("sellers.exportPDF")}
@@ -144,7 +193,7 @@ const Dashboard = () => {
       onDateRangeChange={handleDateRangeChange}
     >
       <div id="dashboard-content">
-        <StatsCards stats={stats} formatCurrency={formatCurrency} />
+        <StatsCards stats={stats} formatCurrency={dashboardFormatCurrency} />
         <DashboardCharts
           salesByDayData={salesByDayData}
           salesByCategoryData={salesByCategoryData}
