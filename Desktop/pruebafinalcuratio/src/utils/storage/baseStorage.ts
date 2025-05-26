@@ -72,6 +72,7 @@ export const getLastUpdatedData = async (): Promise<LastUpdatedData> => {
   try {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
+      console.error("User not authenticated in getLastUpdatedData");
       return { transactions: null, categories: null };
     }
 
@@ -81,11 +82,29 @@ export const getLastUpdatedData = async (): Promise<LastUpdatedData> => {
       .eq('user_id', user.id)
       .single();
 
-    if (error || !metadata) {
+    if (error) {
+      console.error("Error fetching user metadata:", error);
+      // If no metadata exists, create it
+      if (error.code === 'PGRST116') {
+        const { error: insertError } = await supabase
+          .from('user_metadata')
+          .insert([{
+            user_id: user.id,
+            last_updated: {
+              transactions: null,
+              categories: null
+            }
+          }]);
+        
+        if (insertError) {
+          console.error("Error creating user metadata:", insertError);
+        }
+        return { transactions: null, categories: null };
+      }
       return { transactions: null, categories: null };
     }
 
-    return metadata.last_updated || { transactions: null, categories: null };
+    return metadata?.last_updated || { transactions: null, categories: null };
   } catch (error) {
     console.error("Error in getLastUpdatedData:", error);
     return { transactions: null, categories: null };

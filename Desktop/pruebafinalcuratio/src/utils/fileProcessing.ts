@@ -191,7 +191,8 @@ export const saveProcessedData = async (type: 'transactions' | 'categories', dat
       return data;
     }
 
-    const { error } = await supabase
+    // First, save the data
+    const { error: upsertError } = await supabase
       .from(type)
       .upsert(
         data.map(item => ({
@@ -200,8 +201,26 @@ export const saveProcessedData = async (type: 'transactions' | 'categories', dat
         }))
       );
 
-    if (error) {
-      console.error(`Error saving ${type}:`, error);
+    if (upsertError) {
+      console.error(`Error saving ${type}:`, upsertError);
+      return data;
+    }
+
+    // Then, update the last_updated timestamp in user_metadata
+    const now = new Date().toISOString();
+    const { error: metadataError } = await supabase
+      .from('user_metadata')
+      .upsert({
+        user_id: user.id,
+        last_updated: {
+          [type]: now
+        }
+      }, {
+        onConflict: 'user_id'
+      });
+
+    if (metadataError) {
+      console.error(`Error updating metadata for ${type}:`, metadataError);
     }
 
     return data;

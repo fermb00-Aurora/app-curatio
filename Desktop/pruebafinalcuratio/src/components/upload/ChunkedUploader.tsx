@@ -52,7 +52,13 @@ export const ChunkedUploader: React.FC<ChunkedUploaderProps> = ({
           processedData = await processCategoriesFile(data);
         }
 
-        // Upload file to Supabase
+        // Save processed data first
+        const savedData = await saveProcessedData(type, processedData);
+        if (!savedData) {
+          throw new Error('Failed to save processed data');
+        }
+
+        // Then upload file to Supabase
         const result = await uploadToSupabase(file, type, (progress) => {
           setUploadProgress(progress);
         });
@@ -66,10 +72,10 @@ export const ChunkedUploader: React.FC<ChunkedUploaderProps> = ({
           continue;
         }
 
-        // Refresh data after successful upload
+        // Refresh data after successful upload and save
         await refreshData();
         
-        onUploadComplete(file, processedData);
+        onUploadComplete(file, savedData);
       }
 
       toast({
