@@ -24,15 +24,21 @@ export const getTransactionsData = async (): Promise<Transaction[]> => {
     const { data, error } = await supabase
       .from('transactions')
       .select('*')
-      .eq('user_id', user.id);
+      .eq('user_id', user.id)
+      .order('fecha', { ascending: false });
 
     if (error) {
       console.error("Error fetching transactions:", error.message, error.details, error.hint);
       return [];
     }
 
-    console.log(`Retrieved ${data?.length || 0} transactions`);
-    return data || [];
+    if (!data || data.length === 0) {
+      console.log("No transactions found for user:", user.id);
+      return [];
+    }
+
+    console.log(`Retrieved ${data.length} transactions`);
+    return data;
   } catch (error) {
     console.error("Error in getTransactionsData:", error);
     return [];
@@ -54,15 +60,21 @@ export const getCategoriesData = async (): Promise<Category[]> => {
     const { data, error } = await supabase
       .from('categories')
       .select('*')
-      .eq('user_id', user.id);
+      .eq('user_id', user.id)
+      .order('codigo', { ascending: true });
 
     if (error) {
       console.error("Error fetching categories:", error.message, error.details, error.hint);
       return [];
     }
 
-    console.log(`Retrieved ${data?.length || 0} categories`);
-    return data || [];
+    if (!data || data.length === 0) {
+      console.log("No categories found for user:", user.id);
+      return [];
+    }
+
+    console.log(`Retrieved ${data.length} categories`);
+    return data;
   } catch (error) {
     console.error("Error in getCategoriesData:", error);
     return [];
@@ -76,10 +88,11 @@ export const getLastUpdatedData = async (): Promise<LastUpdatedData> => {
   try {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
-      console.error("User not authenticated in getLastUpdatedData");
+      console.error("User not authenticated in getLastUpdatedData:", userError);
       return { transactions: null, categories: null };
     }
 
+    console.log("Fetching last updated data for user:", user.id);
     const { data: metadata, error } = await supabase
       .from('user_metadata')
       .select('last_updated')
@@ -87,9 +100,10 @@ export const getLastUpdatedData = async (): Promise<LastUpdatedData> => {
       .single();
 
     if (error) {
-      console.error("Error fetching user metadata:", error);
+      console.error("Error fetching user metadata:", error.message, error.details, error.hint);
       // If no metadata exists, create it
       if (error.code === 'PGRST116') {
+        console.log("Creating new user metadata for user:", user.id);
         const { error: insertError } = await supabase
           .from('user_metadata')
           .insert([{
@@ -101,13 +115,16 @@ export const getLastUpdatedData = async (): Promise<LastUpdatedData> => {
           }]);
         
         if (insertError) {
-          console.error("Error creating user metadata:", insertError);
+          console.error("Error creating user metadata:", insertError.message, insertError.details, insertError.hint);
+        } else {
+          console.log("Successfully created user metadata");
         }
         return { transactions: null, categories: null };
       }
       return { transactions: null, categories: null };
     }
 
+    console.log("Retrieved last updated data:", metadata?.last_updated);
     return metadata?.last_updated || { transactions: null, categories: null };
   } catch (error) {
     console.error("Error in getLastUpdatedData:", error);

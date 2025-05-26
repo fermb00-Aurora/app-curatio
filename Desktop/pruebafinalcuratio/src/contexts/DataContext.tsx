@@ -1,166 +1,117 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { toast } from '@/hooks/use-toast';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useToast } from '@/components/ui/use-toast';
 import { useTranslation } from 'react-i18next';
-import type { Transaction, Category, DataStore } from '@/utils/dataTypes';
-import { 
-  getDataStore, 
-  initializeDataStore,
-  filterDataByDateRange,
-} from '@/utils/dataStorage';
+import { getDataStore } from '@/utils/storage/dataStore';
+import type { Transaction, Category } from '@/utils/dataTypes';
 
 interface DataContextType {
-  dataStore: DataStore;
+  transactions: Transaction[];
+  categories: Category[];
   filteredTransactions: Transaction[];
-  refreshData: () => Promise<void>;
   isLoading: boolean;
-  setDateRange: (start: Date, end: Date) => void;
-  dateRange: {
-    startDate: Date;
-    endDate: Date;
-  };
+  refreshData: () => Promise<void>;
+  setDateRange: (start: Date | null, end: Date | null) => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
-export const useDataContext = () => {
-  const context = useContext(DataContext);
-  if (context === undefined) {
-    throw new Error('useDataContext must be used within a DataProvider');
-  }
-  return context;
-};
-
-export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { t } = useTranslation();
-  const [dataStore, setDataStore] = useState<DataStore>({ 
-    transactions: [], 
-    categories: [], 
-    availableDates: [], 
-    uniqueCategories: [],
-    lastUpdated: { transactions: null, categories: null }
-  });
+export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
-  const [dateRange, setDateRangeState] = useState(() => ({
-    startDate: new Date(2025, 2, 1),
-    endDate: new Date(2025, 2, 31)
-  }));
   const [isLoading, setIsLoading] = useState(true);
+  const [dateRange, setDateRange] = useState<{ start: Date | null; end: Date | null }>({ start: null, end: null });
   const [isInitialized, setIsInitialized] = useState(false);
+  const { toast } = useToast();
+  const { t } = useTranslation();
 
-  // Initialize translations
-  useEffect(() => {
-    const addTranslations = () => {
-      try {
-        const newTranslations = {
-          upload: {
-            incrementalMode: "Modo incremental",
-            incrementalModeDescription: "Añadir nuevos datos sin eliminar los existentes",
-            replaceModeDescription: "Reemplazar datos existentes",
-            fileIncrementalProcessed: "Archivo procesado e integrado con datos existentes"
-          }
-        };
-        
-        console.log("Translation keys for incremental updates:", JSON.stringify(newTranslations));
-      } catch (error) {
-        console.error("Error setting up translations:", error);
-      }
-    };
-    
-    addTranslations();
-  }, []);
-
-  // Initial data load
-  useEffect(() => {
-    if (!isInitialized) {
-      console.log("DataContext: Initial data load");
-      refreshData();
-      setIsInitialized(true);
-    }
-  }, [isInitialized]);
-
-  // Filter transactions whenever dateRange changes
-  useEffect(() => {
-    if (!dataStore.transactions || dataStore.transactions.length === 0) {
-      console.log("No transactions data to filter");
-      setFilteredTransactions([]);
-      return;
-    }
-
-    const startDate = dateRange.startDate;
-    const endDate = dateRange.endDate;
-    
-    console.log(`Filtering transactions by date range: ${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`);
-    
-    const filtered = filterDataByDateRange(dataStore.transactions, startDate, endDate);
-    console.log(`Filtered ${filtered.length} out of ${dataStore.transactions.length} transactions`);
-    
-    setFilteredTransactions(filtered);
-  }, [dataStore.transactions, dateRange]);
-
-  const refreshData = async () => {
+  const refreshData = useCallback(async () => {
     try {
-      console.log("DataContext: Starting data refresh");
+      console.log("Starting data refresh...");
       setIsLoading(true);
+      const { transactions: newTransactions, categories: newCategories } = await getDataStore();
       
-      const newDataStore = await getDataStore();
-      console.log("DataContext: Retrieved new data store", {
-        transactionsCount: newDataStore.transactions.length,
-        categoriesCount: newDataStore.categories.length,
-        lastUpdated: newDataStore.lastUpdated
-      });
+      console.log(`Retrieved ${newTransactions.length} transactions and ${newCategories.length} categories`);
       
-      setDataStore(newDataStore);
+      setTransactions(newTransactions);
+      setCategories(newCategories);
       
-      const filtered = filterDataByDateRange(
-        newDataStore.transactions,
-        dateRange.startDate,
-        dateRange.endDate
-      );
-      setFilteredTransactions(filtered);
-      
-      console.log("DataContext: Data refresh completed successfully");
+      // Apply date filtering to new transactions
+      if (newTransactions.length > 0) {
+        const filtered = newTransactions.filter(transaction => {
+          if (!dateRange.start || !dateRange.end) return true;
+          const transactionDate = new Date(transaction.fecha);
+          return transactionDate >= dateRange.start && transactionDate <= dateRange.end;
+        });
+        console.log(`Filtered ${filtered.length} transactions based on date range`);
+        setFilteredTransactions(filtered);
+      } else {
+        console.log("No transactions to filter");
+        setFilteredTransactions([]);
+      }
     } catch (error) {
-      console.error('Error refreshing data:', error);
+      console.error("Error refreshing data:", error);
       toast({
-        title: t('errors.dataRefreshFailed'),
-        description: t('errors.tryAgain'),
-        variant: 'destructive',
+        title: t('error'),
+        description: t('errorRefreshingData'),
+        variant: "destructive"
       });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [dateRange, toast, t]);
 
-  const setDateRange = (startDate: Date, endDate: Date) => {
-    console.log("DataContext: Updating date range", {
-      startDate: startDate.toLocaleDateString(),
-      endDate: endDate.toLocaleDateString()
-    });
-    
-    setDateRangeState({ startDate, endDate });
-    
-    if (dataStore.transactions && dataStore.transactions.length > 0) {
-      const filtered = filterDataByDateRange(
-        dataStore.transactions,
-        startDate,
-        endDate
-      );
-      setFilteredTransactions(filtered);
+  // Initial data load
+  useEffect(() => {
+    if (!isInitialized) {
+      console.log("Performing initial data load...");
+      refreshData().then(() => {
+        console.log("Initial data load completed");
+        setIsInitialized(true);
+      });
     }
+  }, [refreshData, isInitialized]);
+
+  // Update filtered transactions when date range changes
+  useEffect(() => {
+    if (transactions.length > 0) {
+      console.log("Updating filtered transactions based on new date range");
+      const filtered = transactions.filter(transaction => {
+        if (!dateRange.start || !dateRange.end) return true;
+        const transactionDate = new Date(transaction.fecha);
+        return transactionDate >= dateRange.start && transactionDate <= dateRange.end;
+      });
+      console.log(`Filtered ${filtered.length} transactions`);
+      setFilteredTransactions(filtered);
+    } else {
+      console.log("No transactions to filter");
+      setFilteredTransactions([]);
+    }
+  }, [dateRange, transactions]);
+
+  const handleSetDateRange = (start: Date | null, end: Date | null) => {
+    console.log("Setting new date range:", { start, end });
+    setDateRange({ start, end });
   };
 
   return (
-    <DataContext.Provider
-      value={{
-        dataStore,
-        filteredTransactions,
-        refreshData,
-        isLoading,
-        setDateRange,
-        dateRange,
-      }}
-    >
+    <DataContext.Provider value={{
+      transactions,
+      categories,
+      filteredTransactions,
+      isLoading,
+      refreshData,
+      setDateRange: handleSetDateRange
+    }}>
       {children}
     </DataContext.Provider>
   );
+};
+
+export const useData = () => {
+  const context = useContext(DataContext);
+  if (context === undefined) {
+    throw new Error('useData must be used within a DataProvider');
+  }
+  return context;
 };
