@@ -13,8 +13,13 @@ import { formatCurrency } from "@/utils/formatters";
 
 const Dashboard = () => {
   const { t } = useTranslation();
-  const { filteredTransactions, categories } = useData();
-  const { stats, salesByDayData, salesByCategoryData, formatCurrency: dashboardFormatCurrency } = useDashboardData(filteredTransactions);
+  const { filteredTransactions, categories, setDateRange } = useData();
+  const { 
+    stats, 
+    salesByDayData, 
+    salesByCategoryData, 
+    formatCurrency: dashboardFormatCurrency
+  } = useDashboardData(filteredTransactions);
   
   console.log(`Dashboard rendering with ${filteredTransactions.length} transactions`);
   console.log("Current stats:", stats);
@@ -22,52 +27,6 @@ const Dashboard = () => {
   const handleExportPdf = async () => {
     await exportToPdf("dashboard", "dashboard.pdf");
   };
-
-  // Compute sales by day
-  const salesByDayData = React.useMemo(() => {
-    const sales = new Map<string, number>();
-    
-    filteredTransactions.forEach(transaction => {
-      const date = new Date(transaction.fecha).toLocaleDateString('es-ES', {
-        day: '2-digit',
-        month: '2-digit'
-      });
-      const currentTotal = sales.get(date) || 0;
-      sales.set(date, currentTotal + transaction.importeNeto);
-    });
-
-    return Array.from(sales.entries())
-      .map(([fecha, importe]) => ({
-        fecha,
-        importe: Number(importe.toFixed(2))
-      }))
-      .sort((a, b) => {
-        const [dayA, monthA] = a.fecha.split('/');
-        const [dayB, monthB] = b.fecha.split('/');
-        return new Date(2024, parseInt(monthA) - 1, parseInt(dayA))
-          .getTime() - new Date(2024, parseInt(monthB) - 1, parseInt(dayB))
-          .getTime();
-      });
-  }, [filteredTransactions]);
-
-  // Compute sales by category
-  const salesByCategoryData = React.useMemo(() => {
-    const sales = new Map<string, number>();
-    
-    filteredTransactions.forEach(transaction => {
-      const category = categories.find(cat => cat.codigo === transaction.codigo);
-      const categoryName = category?.familia || t("common.unknown");
-      const currentTotal = sales.get(categoryName) || 0;
-      sales.set(categoryName, currentTotal + transaction.importeNeto);
-    });
-
-    return Array.from(sales.entries())
-      .map(([name, value]) => ({
-        name,
-        value: Number(value.toFixed(2))
-      }))
-      .sort((a, b) => b.value - a.value);
-  }, [filteredTransactions, categories, t]);
 
   // Get date range from transactions
   const dateRange = React.useMemo(() => {
@@ -87,53 +46,43 @@ const Dashboard = () => {
 
   const topSellingProducts = React.useMemo(() => {
     const productSales = new Map<string, {
-        codigo: string;
-        description: string;
-        units: number;
-        total: number;
+      codigo: string;
+      description: string;
+      units: number;
+      total: number;
     }>();
 
-    // console.log("Recalculating topSellingProducts. Number of filteredTransactions:", filteredTransactions.length);
+    filteredTransactions.forEach(item => {
+      const transactionUnits = Number(item.unidades) || 0;
+      const transactionCodigo = item.codigo;
 
-    filteredTransactions.forEach((item, index) => {
-        // Log the raw values for the first 5 transactions to inspect them
-        if (index < 5) {
-            console.log(`[topSellingProducts] Processing item ${index}: codigo='${item.codigo}', raw unidades='${item.unidades}', typeof unidades=${typeof item.unidades}`);
-        }
+      if (!transactionCodigo || transactionCodigo.trim() === "" || transactionUnits === 0) {
+        return;
+      }
 
-        const transactionUnits = Number(item.unidades) || 0;
-        const transactionCodigo = item.codigo; 
+      const importeNeto = Number(item.importeNeto) || 0;
+      let currentEntry = productSales.get(transactionCodigo);
 
-        if (!transactionCodigo || transactionCodigo.trim() === "" || transactionUnits === 0) {
-            return;
-        }
-
-        const importeNeto = Number(item.importeNeto) || 0;
-        let currentEntry = productSales.get(transactionCodigo);
-
-        if (currentEntry) {
-            currentEntry.units += transactionUnits;
-            currentEntry.total += importeNeto;
-        } else {
-            const catalogProduct = dataStore.categories.find(cat => cat.codigo === transactionCodigo);
-            const description = catalogProduct?.descripcion?.trim() || item.clienteDescripcion?.trim() || transactionCodigo; 
-            
-            productSales.set(transactionCodigo, {
-                codigo: transactionCodigo,
-                description: description,
-                units: transactionUnits,
-                total: importeNeto,
-            });
-        }
+      if (currentEntry) {
+        currentEntry.units += transactionUnits;
+        currentEntry.total += importeNeto;
+      } else {
+        const category = categories.find(cat => cat.codigo === transactionCodigo);
+        const description = category?.descripcion?.trim() || item.clienteDescripcion?.trim() || transactionCodigo;
+        
+        productSales.set(transactionCodigo, {
+          codigo: transactionCodigo,
+          description: description,
+          units: transactionUnits,
+          total: importeNeto,
+        });
+      }
     });
 
-    const aggregatedProducts = Array.from(productSales.values());
-    // Sort by total sales descending
-    const sortedProducts = aggregatedProducts.sort((a, b) => b.total - a.total); 
-    const top10 = sortedProducts.slice(0, 10); // Take top 10
-    return top10;
-
-  }, [filteredTransactions, dataStore.categories, t]);
+    return Array.from(productSales.values())
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 10);
+  }, [filteredTransactions, categories]);
 
   const dailySummary = React.useMemo(() => {
     const dateMap = new Map();
@@ -152,7 +101,7 @@ const Dashboard = () => {
         dateMap.set(fecha, {
           ...day,
           transactions: day.transactions + 1,
-          units: day.units + unidades, // Sumamos todas las unidades (positivas y negativas)
+          units: day.units + unidades,
           sales: day.sales + (isReturn ? 0 : importeBruto),
           returns: day.returns + (isReturn ? Math.abs(importeBruto) : 0),
           net: day.net + importeNeto,
