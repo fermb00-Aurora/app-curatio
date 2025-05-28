@@ -16,19 +16,6 @@ import Login from "@/pages/Login";
 function App() {
   const { t } = useTranslation();
   
-  useEffect(() => {
-    console.log("App initialized, checking localStorage");
-    const transactionsData = localStorage.getItem(STORAGE_KEYS.transactions);
-    const categoriesData = localStorage.getItem(STORAGE_KEYS.categories);
-    
-    console.log("Local storage status:");
-    console.log(`- Transactions: ${transactionsData ? JSON.parse(transactionsData).length : 0} items`);
-    console.log(`- Categories: ${categoriesData ? JSON.parse(categoriesData).length : 0} items`);
-    
-    // Uncomment this line if you need to clear localStorage for debugging
-    // localStorage.clear();
-  }, []);
-
   return (
     <AuthProvider>
       <DataProvider>

@@ -1,5 +1,2 @@
-
 // Re-export all from dataStore
-export * from './storage/dataStore';
-// Re-export merge helpers for use in upload logic
-export { mergeTransactionsData, mergeCategoriesData } from './storage/dataMerging';
+// Remove the export * from './storage/dataStore' line, as the file has been deleted and is no longer needed.

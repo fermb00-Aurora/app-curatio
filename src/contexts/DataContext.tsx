@@ -2,12 +2,9 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { toast } from '@/hooks/use-toast';
 import { useTranslation } from 'react-i18next';
 import type { Transaction, Category, DataStore } from '@/utils/dataTypes';
-import { 
-  getDataStore, 
-  initializeDataStore,
-  filterDataByDateRange,
-  STORAGE_KEYS
-} from '@/utils/dataStorage';
+import { extractAvailableDates, extractUniqueCategories, filterDataByDateRange } from '@/utils/storage/dataExtraction';
+import { useAuth } from './AuthContext';
+import { supabase } from '../../../frontend/src/services/supabaseClient';
 
 interface DataContextType {
   dataStore: DataStore;
@@ -33,7 +30,14 @@ export const useDataContext = () => {
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { t } = useTranslation();
-  const [dataStore, setDataStore] = useState<DataStore>(() => initializeDataStore());
+  const { user } = useAuth();
+  const [dataStore, setDataStore] = useState<DataStore>({
+    transactions: [],
+    categories: [],
+    availableDates: [],
+    uniqueCategories: [],
+    lastUpdated: { transactions: null, categories: null },
+  });
   const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
   const [dateRange, setDateRangeState] = useState(() => ({
     startDate: new Date(2025, 2, 1),
@@ -41,79 +45,30 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }));
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    const addTranslations = () => {
-      try {
-        const newTranslations = {
-          upload: {
-            incrementalMode: "Modo incremental",
-            incrementalModeDescription: "Añadir nuevos datos sin eliminar los existentes",
-            replaceModeDescription: "Reemplazar datos existentes",
-            fileIncrementalProcessed: "Archivo procesado e integrado con datos existentes"
-          }
-        };
-        
-        console.log("Translation keys for incremental updates:", JSON.stringify(newTranslations));
-      } catch (error) {
-        console.error("Error setting up translations:", error);
-      }
-    };
-    
-    addTranslations();
-  }, []);
-
-  useEffect(() => {
-    console.log("DataContext initialized, refreshing data");
-    refreshData();
-
-    const handleStorageChange = () => {
-      console.log("Storage change detected, refreshing data");
-      refreshData();
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, []);
-
-  // Filter transactions whenever dateRange changes
-  useEffect(() => {
-    if (dataStore.transactions && dataStore.transactions.length) {
-      const startDate = dateRange.startDate;
-      const endDate = dateRange.endDate;
-      
-      console.log(`Filtering transactions by date range: ${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`);
-      
-      const filtered = filterDataByDateRange(dataStore.transactions, startDate, endDate);
-      console.log(`Filtered ${filtered.length} out of ${dataStore.transactions.length} transactions`);
-      
-      setFilteredTransactions(filtered);
-    } else {
-      console.log("No transactions to display");
-      setFilteredTransactions([]);
-    }
-  }, [dataStore.transactions, dateRange]);
-
-  const refreshData = () => {
-    console.log("Refreshing data...");
+  // Fetch data from Supabase
+  const fetchData = async () => {
+    if (!user) return;
     setIsLoading(true);
     try {
-      const rawData = localStorage.getItem(STORAGE_KEYS.transactions);
-      if (rawData) {
-        console.log(`Retrieved ${JSON.parse(rawData).length} transactions from localStorage`);
+      const [transactionsRes, categoriesRes] = await Promise.all([
+        supabase.from('transactions').select('*').eq('user_id', user.id),
+        supabase.from('categories').select('*').eq('user_id', user.id),
+      ]);
+      if (transactionsRes.error || categoriesRes.error) {
+        throw transactionsRes.error || categoriesRes.error;
       }
-      
-      const freshData = getDataStore();
-      console.log(`Retrieved fresh data: ${freshData.transactions.length} transactions`);
-      setDataStore(freshData);
-      
-      // Filtering will happen in the useEffect
-    } catch (error) {
-      console.error('Error refreshing data:', error);
+      setDataStore({
+        transactions: transactionsRes.data || [],
+        categories: categoriesRes.data || [],
+        availableDates: extractAvailableDates(transactionsRes.data || []),
+        uniqueCategories: extractUniqueCategories(categoriesRes.data || []),
+        lastUpdated: { transactions: null, categories: null },
+      });
+    } catch (error: any) {
+      console.error('Error fetching data from Supabase:', error);
       toast({
         title: t('common.error'),
-        description: t('upload.failedToRefreshData', 'Failed to refresh data'),
+        description: error.message || 'Failed to fetch data from Supabase',
         variant: 'destructive',
       });
     } finally {
@@ -121,12 +76,30 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const setDateRange = (startDate: Date, endDate: Date) => {
-    console.log(`Setting date range: ${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`);
-    setDateRangeState({ startDate, endDate });
+  useEffect(() => {
+    fetchData();
+    // eslint-disable-next-line
+  }, [user]);
+
+  // Filter transactions whenever dateRange or dataStore changes
+  useEffect(() => {
+    if (dataStore.transactions && dataStore.transactions.length) {
+      const startDate = dateRange.startDate;
+      const endDate = dateRange.endDate;
+      const filtered = filterDataByDateRange(dataStore.transactions, startDate, endDate);
+      setFilteredTransactions(filtered);
+    } else {
+      setFilteredTransactions([]);
+    }
+  }, [dataStore.transactions, dateRange]);
+
+  const refreshData = () => {
+    fetchData();
   };
 
-  console.log("DataProvider rendering with", filteredTransactions.length, "filtered transactions");
+  const setDateRange = (startDate: Date, endDate: Date) => {
+    setDateRangeState({ startDate, endDate });
+  };
 
   return (
     <DataContext.Provider
