@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { Transaction, Category, DataStore } from '@/utils/dataTypes';
 import { extractAvailableDates, extractUniqueCategories, filterDataByDateRange } from '@/utils/storage/dataExtraction';
 import { useAuth } from './AuthContext';
-import { supabase } from '../../../frontend/src/services/supabaseClient';
+import { supabase } from '@/services/supabaseClient';
 
 interface DataContextType {
   dataStore: DataStore;
