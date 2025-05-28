@@ -27,6 +27,7 @@ import { filterDataByDateRange } from "@/utils/dataStorage";
 import { supabase } from '../../frontend/src/services/supabaseClient';
 import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from '@/hooks/use-toast';
 
 const Transactions = () => {
   const { t } = useTranslation();
@@ -47,6 +48,10 @@ const Transactions = () => {
   const [deleting, setDeleting] = React.useState(false);
 
   const { user } = useAuth();
+  const [editDialogOpen, setEditDialogOpen] = React.useState(false);
+  const [transactionToEdit, setTransactionToEdit] = React.useState<any>(null);
+  const [editForm, setEditForm] = React.useState<any>({});
+  const [editing, setEditing] = React.useState(false);
 
   const handleDateRangeChange = (range: { from: Date; to: Date }) => {
     const filtered = filterDataByDateRange(dataStore.transactions, range.from, range.to);
@@ -99,6 +104,40 @@ const Transactions = () => {
     setDeleting(false);
     setTransactionToDelete(null);
     setDateFilteredTransactions(prev => prev.filter(t => t.numeroDoc !== transactionToDelete.numeroDoc));
+  };
+
+  const handleEdit = (transaction: any) => {
+    setTransactionToEdit(transaction);
+    setEditForm({ ...transaction });
+    setEditDialogOpen(true);
+  };
+
+  const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditForm({ ...editForm, [e.target.name]: e.target.value });
+  };
+
+  const confirmEdit = async () => {
+    if (!transactionToEdit || !user) return;
+    setEditing(true);
+    try {
+      const updateKey = transactionToEdit.id
+        ? { id: transactionToEdit.id }
+        : { numero_doc: transactionToEdit.numeroDoc, user_id: user.id };
+      const { error } = await supabase
+        .from('transactions')
+        .update({ ...editForm })
+        .match(updateKey);
+      if (error) throw error;
+      setEditDialogOpen(false);
+      setTransactionToEdit(null);
+      setEditForm({});
+      setDateFilteredTransactions(prev => prev.map(t => (t.numeroDoc === transactionToEdit.numeroDoc ? { ...t, ...editForm } : t)));
+      toast({ title: 'Éxito', description: 'Transacción actualizada correctamente.', variant: 'default' });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setEditing(false);
+    }
   };
 
   return (
@@ -194,7 +233,7 @@ const Transactions = () => {
                     <TableCell className="px-2 py-2 text-right whitespace-nowrap">{transaction.devolucion?.toFixed(2)}€</TableCell>
                     <TableCell className="px-2 py-2 whitespace-nowrap">{transaction.tipoPago}</TableCell>
                     <TableCell className="px-2 py-2 whitespace-nowrap">
-                      <button className="text-blue-600 hover:underline mr-2" onClick={() => alert('Editar (próximamente)')}>Editar</button>
+                      <button className="text-blue-600 hover:underline mr-2" onClick={() => handleEdit(transaction)}>Editar</button>
                       <button className="text-red-600 hover:underline" onClick={() => handleDelete(transaction)}>Eliminar</button>
                     </TableCell>
                   </TableRow>
@@ -282,6 +321,40 @@ const Transactions = () => {
                 {deleting ? 'Eliminando...' : 'Eliminar'}
               </button>
               <button className="px-4 py-2 bg-gray-200 rounded" onClick={() => setDeleteDialogOpen(false)} disabled={deleting}>
+                Cancelar
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Edit Dialog */}
+      {editDialogOpen && (
+        <Dialog open={editDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Editar transacción</DialogTitle>
+              <DialogDescription>Modifica los campos y guarda los cambios.</DialogDescription>
+            </DialogHeader>
+            <form className="space-y-2">
+              {Object.keys(editForm).map((key) => (
+                <div key={key} className="flex flex-col">
+                  <label className="text-xs font-semibold mb-1">{key}</label>
+                  <input
+                    className="border rounded px-2 py-1 text-sm"
+                    name={key}
+                    value={editForm[key] ?? ''}
+                    onChange={handleEditFormChange}
+                    disabled={editing || key === 'numeroDoc' || key === 'id'}
+                  />
+                </div>
+              ))}
+            </form>
+            <DialogFooter>
+              <button className="px-4 py-2 bg-blue-600 text-white rounded" onClick={confirmEdit} disabled={editing}>
+                {editing ? 'Guardando...' : 'Guardar'}
+              </button>
+              <button className="px-4 py-2 bg-gray-200 rounded" onClick={() => setEditDialogOpen(false)} disabled={editing}>
                 Cancelar
               </button>
             </DialogFooter>
