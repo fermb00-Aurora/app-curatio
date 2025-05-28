@@ -18,6 +18,9 @@ import {
 import { useDataContext } from "@/contexts/DataContext";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ChunkedUploaderProps {
   type: "transactions" | "categories";
@@ -34,6 +37,11 @@ export const ChunkedUploader: React.FC<ChunkedUploaderProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const { user } = useAuth();
+  const [previewData, setPreviewData] = useState<any[]>([]);
+  const [showPreview, setShowPreview] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
   const handleUpload = async (file: File) => {
     setIsUploading(true);
@@ -92,9 +100,43 @@ export const ChunkedUploader: React.FC<ChunkedUploaderProps> = ({
     }
   };
 
+  const parseFile = async (file: File) => {
+    if (file.name.endsWith('.csv')) {
+      return new Promise<any[]>((resolve, reject) => {
+        Papa.parse(file, {
+          header: true,
+          complete: (results) => resolve(results.data),
+          error: reject,
+        });
+      });
+    } else {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, { type: 'array' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      return XLSX.utils.sheet_to_json(sheet);
+    }
+  };
+
+  const handleFileSelect = async (file: File) => {
+    setSelectedFile(file);
+    const data = await parseFile(file);
+    setPreviewData(data.slice(0, 10));
+    setShowPreview(true);
+    setConfirming(false);
+  };
+
+  const handleConfirmUpload = async () => {
+    if (!selectedFile || !user) return;
+    setConfirming(true);
+    await handleUpload(selectedFile);
+    setShowPreview(false);
+    setSelectedFile(null);
+    setPreviewData([]);
+    setConfirming(false);
+  };
+
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: async (files) => {
-      // Enforce upload limits
       if (files.length > 10) {
         toast({
           title: t("common.error"),
@@ -112,32 +154,63 @@ export const ChunkedUploader: React.FC<ChunkedUploaderProps> = ({
         });
         return;
       }
-      const filesToProcess = allowMultiple ? files : [files[0]];
-      for (const file of filesToProcess) {
-        if (!file) continue;
-        const isExcel = file.name.endsWith('.xlsx');
-        const isOds = file.name.endsWith('.ods');
-        if (type === "transactions" && !isExcel) {
-          toast({ title: t("common.error"), description: t("upload.transactionsExcelOnly"), variant: "destructive" });
-          continue;
-        }
-        if (type === "categories" && !isExcel && !isOds) {
-          toast({ title: t("common.error"), description: t("upload.invalidFormat"), variant: "destructive" });
-          continue;
-        }
-        await handleUpload(file);
-        if (!allowMultiple) break;
-      }
+      // Only allow one file at a time for preview/confirmation
+      await handleFileSelect(files[0]);
     },
     disabled: isUploading,
-    multiple: allowMultiple,
-    accept: type === "transactions" 
-      ? { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] }
-      : {
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
-          'application/vnd.oasis.opendocument.spreadsheet': ['.ods']
-        }
+    multiple: false,
+    accept: {
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+      'application/vnd.oasis.opendocument.spreadsheet': ['.ods'],
+      'text/csv': ['.csv'],
+    },
   });
+
+  if (showPreview && selectedFile) {
+    return (
+      <div className="space-y-4">
+        <div className="border rounded p-4 bg-white">
+          <h3 className="font-semibold mb-2">Vista previa de los datos</h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-xs">
+              <thead>
+                <tr>
+                  {Object.keys(previewData[0] || {}).map((key) => (
+                    <th key={key} className="px-2 py-1 border-b">{key}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {previewData.map((row, i) => (
+                  <tr key={i}>
+                    {Object.values(row).map((val, j) => (
+                      <td key={j} className="px-2 py-1 border-b">{String(val)}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex gap-2 mt-4">
+            <button
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              onClick={handleConfirmUpload}
+              disabled={confirming}
+            >
+              {confirming ? 'Subiendo...' : 'Confirmar y subir'}
+            </button>
+            <button
+              className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+              onClick={() => { setShowPreview(false); setSelectedFile(null); setPreviewData([]); }}
+              disabled={confirming}
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
