@@ -21,6 +21,8 @@ import { Label } from "@/components/ui/label";
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '../../../frontend/src/services/supabaseClient';
+import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 interface ChunkedUploaderProps {
   type: "transactions" | "categories";
@@ -42,6 +44,10 @@ export const ChunkedUploader: React.FC<ChunkedUploaderProps> = ({
   const [showPreview, setShowPreview] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [duplicateRows, setDuplicateRows] = useState<any[]>([]);
+  const [rowsToUpsert, setRowsToUpsert] = useState<any[]>([]);
+  const [modalIndex, setModalIndex] = useState(0);
+  const [uploading, setUploading] = useState(false);
 
   const handleUpload = async (file: File) => {
     setIsUploading(true);
@@ -125,14 +131,72 @@ export const ChunkedUploader: React.FC<ChunkedUploaderProps> = ({
     setConfirming(false);
   };
 
+  // Helper to check for duplicates in Supabase
+  const checkDuplicates = async (rows: any[], userId: string) => {
+    const uniqueKey = type === 'transactions' ? 'numero_doc' : 'codigo';
+    const keys = rows.map(row => row[uniqueKey]);
+    const { data, error } = await supabase
+      .from(type)
+      .select(uniqueKey)
+      .in(uniqueKey, keys)
+      .eq('user_id', userId);
+    if (error) throw error;
+    return data?.map((d: any) => d[uniqueKey]) || [];
+  };
+
+  // Upsert rows to Supabase
+  const upsertRows = async (rows: any[], userId: string) => {
+    const rowsWithUser = rows.map(row => ({ ...row, user_id: userId }));
+    const { error } = await supabase
+      .from(type)
+      .upsert(rowsWithUser, { onConflict: type === 'transactions' ? 'user_id,numero_doc' : 'user_id,codigo' });
+    if (error) throw error;
+  };
+
+  // Handle preview confirmation
   const handleConfirmUpload = async () => {
     if (!selectedFile || !user) return;
     setConfirming(true);
-    await handleUpload(selectedFile);
-    setShowPreview(false);
-    setSelectedFile(null);
-    setPreviewData([]);
-    setConfirming(false);
+    setUploading(true);
+    const allRows = await parseFile(selectedFile);
+    // Validate all rows (simple required field check)
+    const requiredKey = type === 'transactions' ? 'numero_doc' : 'codigo';
+    if (allRows.some(row => !row[requiredKey])) {
+      toast({ title: t('common.error'), description: `Faltan campos requeridos (${requiredKey}) en el archivo.`, variant: 'destructive' });
+      setConfirming(false); setUploading(false); return;
+    }
+    // Check for duplicates
+    const duplicates = await checkDuplicates(allRows, user.id);
+    if (duplicates.length > 0) {
+      setDuplicateRows(allRows.filter(row => duplicates.includes(row[requiredKey])));
+      setRowsToUpsert(allRows.filter(row => !duplicates.includes(row[requiredKey])));
+      setModalIndex(0);
+    } else {
+      setRowsToUpsert(allRows);
+      await upsertRows(allRows, user.id);
+      toast({ title: 'Éxito', description: 'Datos subidos correctamente.', variant: 'default' });
+      setShowPreview(false); setSelectedFile(null); setPreviewData([]);
+    }
+    setConfirming(false); setUploading(false);
+  };
+
+  // Handle modal actions
+  const handleModalAction = async (action: 'replace' | 'skip') => {
+    const row = duplicateRows[modalIndex];
+    if (action === 'replace') {
+      setRowsToUpsert(prev => [...prev, row]);
+    }
+    if (modalIndex + 1 < duplicateRows.length) {
+      setModalIndex(modalIndex + 1);
+    } else {
+      // All modals done, upsert
+      setUploading(true);
+      await upsertRows(rowsToUpsert.concat(action === 'replace' ? [row] : []), user!.id);
+      setUploading(false);
+      setDuplicateRows([]); setRowsToUpsert([]); setModalIndex(0);
+      setShowPreview(false); setSelectedFile(null); setPreviewData([]);
+      toast({ title: 'Éxito', description: 'Datos subidos correctamente.', variant: 'default' });
+    }
   };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -209,6 +273,27 @@ export const ChunkedUploader: React.FC<ChunkedUploaderProps> = ({
           </div>
         </div>
       </div>
+    );
+  }
+
+  if (duplicateRows.length > 0 && modalIndex < duplicateRows.length) {
+    const row = duplicateRows[modalIndex];
+    return (
+      <Dialog open={true}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Fila duplicada detectada</DialogTitle>
+            <DialogDescription>
+              Revisa la fila detectada como duplicada y elige si deseas reemplazarla o saltarla.
+            </DialogDescription>
+          </DialogHeader>
+          <pre className="bg-gray-100 p-2 rounded text-xs mb-2">{JSON.stringify(row, null, 2)}</pre>
+          <DialogFooter>
+            <button className="px-4 py-2 bg-blue-600 text-white rounded" onClick={() => handleModalAction('replace')}>Reemplazar</button>
+            <button className="px-4 py-2 bg-gray-200 rounded" onClick={() => handleModalAction('skip')}>Saltar</button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     );
   }
 
