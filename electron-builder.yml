@@ -1,0 +1,25 @@
+
+appId: "com.curatio.datavault"
+productName: "Curatio Data Vault"
+directories:
+  output: "electron-dist"
+  buildResources: "public"
+files:
+  - from: "dist"
+    to: ""
+  - from: "electron"
+    to: ""
+mac:
+  category: "public.app-category.business"
+  target: 
+    - "dmg"
+    - "zip"
+win:
+  target: 
+    - "nsis"
+    - "portable"
+linux:
+  target: 
+    - "AppImage"
+    - "deb"
+  category: "Office"
