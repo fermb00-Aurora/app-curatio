@@ -7,14 +7,6 @@ import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { ChunkedUploader } from "@/components/upload/ChunkedUploader";
 import { useDataContext } from "@/contexts/DataContext";
-import { 
-  saveTransactionsData, 
-  saveCategoriesData, 
-  getTransactionsData, 
-  getCategoriesData, 
-  mergeTransactionsData, 
-  mergeCategoriesData 
-} from "@/utils/dataStorage";
 import { readSpreadsheetFile } from "@/utils/fileConverter";
 import { processTransactionsFile, processCategoriesFile } from "@/utils/dataProcessor";
 import {

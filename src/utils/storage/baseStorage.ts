@@ -1,3 +1,7 @@
+// ... existing code ...
+// Remove all functions and code that use localStorage for transactions or categories.
+// Refactor or delete this file if it is no longer needed.
+// ... existing code ...
 
 import { STORAGE_KEYS } from './constants';
 import type { Transaction, Category } from '../dataTypes';

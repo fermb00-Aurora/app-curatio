@@ -181,20 +181,6 @@ export const processCategoriesFile = (data: any[]): Category[] => {
   }));
 };
 
-// Save processed data to localStorage with proper naming
-export const saveProcessedData = (type: 'transactions' | 'categories', data: any[]) => {
-  const key = type === 'transactions' ? 'processed_transacciones' : 'processed_categorias';
-  localStorage.setItem(key, JSON.stringify(data));
-  return data;
-};
-
-// Get saved data from localStorage
-export const getProcessedData = (type: 'transactions' | 'categories') => {
-  const key = type === 'transactions' ? 'processed_transacciones' : 'processed_categorias';
-  const data = localStorage.getItem(key);
-  return data ? JSON.parse(data) : [];
-};
-
 // Filter data by date range
 export const filterDataByDateRange = (data: any[], startDate: Date, endDate: Date) => {
   if (!data || !data.length) return [];

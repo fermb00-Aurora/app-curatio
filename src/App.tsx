@@ -12,7 +12,6 @@ import Sellers from "@/pages/Sellers";
 import UploadFiles from "@/pages/UploadFiles";
 import NotFound from "@/pages/NotFound";
 import Login from "@/pages/Login";
-import { STORAGE_KEYS } from "@/utils/dataStorage";
 
 function App() {
   const { t } = useTranslation();

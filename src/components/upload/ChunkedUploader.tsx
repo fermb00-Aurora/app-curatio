@@ -6,15 +6,6 @@ import { Progress } from "@/components/ui/progress";
 import { readSpreadsheetFile, cleanupSourceFile } from "@/utils/fileConverter";
 import { detectFileType } from "@/utils/dataDetector";
 import { processTransactionsFile, processCategoriesFile } from "@/utils/dataProcessor";
-import { 
-  saveTransactionsData, 
-  saveCategoriesData, 
-  STORAGE_KEYS, 
-  getTransactionsData, 
-  getCategoriesData, 
-  mergeTransactionsData, 
-  mergeCategoriesData 
-} from "@/utils/dataStorage";
 import { useDataContext } from "@/contexts/DataContext";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -150,7 +141,11 @@ export const ChunkedUploader: React.FC<ChunkedUploaderProps> = ({
     const { error } = await supabase
       .from(type)
       .upsert(rowsWithUser, { onConflict: type === 'transactions' ? 'user_id,numero_doc' : 'user_id,codigo' });
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase upsert error:', error);
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      throw error;
+    }
   };
 
   // Handle preview confirmation
@@ -158,26 +153,32 @@ export const ChunkedUploader: React.FC<ChunkedUploaderProps> = ({
     if (!selectedFile || !user) return;
     setConfirming(true);
     setUploading(true);
-    const allRows = await parseFile(selectedFile);
-    // Validate all rows (simple required field check)
-    const requiredKey = type === 'transactions' ? 'numero_doc' : 'codigo';
-    if (allRows.some(row => !row[requiredKey])) {
-      toast({ title: t('common.error'), description: `Faltan campos requeridos (${requiredKey}) en el archivo.`, variant: 'destructive' });
-      setConfirming(false); setUploading(false); return;
+    try {
+      const allRows = await parseFile(selectedFile);
+      // Validate all rows (simple required field check)
+      const requiredKey = type === 'transactions' ? 'numero_doc' : 'codigo';
+      if (allRows.some(row => !row[requiredKey])) {
+        toast({ title: t('common.error'), description: `Faltan campos requeridos (${requiredKey}) en el archivo.`, variant: 'destructive' });
+        setConfirming(false); setUploading(false); return;
+      }
+      // Check for duplicates
+      const duplicates = await checkDuplicates(allRows, user.id);
+      if (duplicates.length > 0) {
+        setDuplicateRows(allRows.filter(row => duplicates.includes(row[requiredKey])));
+        setRowsToUpsert(allRows.filter(row => !duplicates.includes(row[requiredKey])));
+        setModalIndex(0);
+      } else {
+        setRowsToUpsert(allRows);
+        await upsertRows(allRows, user.id);
+        toast({ title: 'Éxito', description: 'Datos subidos correctamente.', variant: 'default' });
+        setShowPreview(false); setSelectedFile(null); setPreviewData([]);
+      }
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      toast({ title: 'Error', description: error.message || 'Error al subir los datos.', variant: 'destructive' });
+    } finally {
+      setConfirming(false); setUploading(false);
     }
-    // Check for duplicates
-    const duplicates = await checkDuplicates(allRows, user.id);
-    if (duplicates.length > 0) {
-      setDuplicateRows(allRows.filter(row => duplicates.includes(row[requiredKey])));
-      setRowsToUpsert(allRows.filter(row => !duplicates.includes(row[requiredKey])));
-      setModalIndex(0);
-    } else {
-      setRowsToUpsert(allRows);
-      await upsertRows(allRows, user.id);
-      toast({ title: 'Éxito', description: 'Datos subidos correctamente.', variant: 'default' });
-      setShowPreview(false); setSelectedFile(null); setPreviewData([]);
-    }
-    setConfirming(false); setUploading(false);
   };
 
   // Handle modal actions
@@ -191,11 +192,17 @@ export const ChunkedUploader: React.FC<ChunkedUploaderProps> = ({
     } else {
       // All modals done, upsert
       setUploading(true);
-      await upsertRows(rowsToUpsert.concat(action === 'replace' ? [row] : []), user!.id);
-      setUploading(false);
-      setDuplicateRows([]); setRowsToUpsert([]); setModalIndex(0);
-      setShowPreview(false); setSelectedFile(null); setPreviewData([]);
-      toast({ title: 'Éxito', description: 'Datos subidos correctamente.', variant: 'default' });
+      try {
+        await upsertRows(rowsToUpsert.concat(action === 'replace' ? [row] : []), user!.id);
+        setDuplicateRows([]); setRowsToUpsert([]); setModalIndex(0);
+        setShowPreview(false); setSelectedFile(null); setPreviewData([]);
+        toast({ title: 'Éxito', description: 'Datos subidos correctamente.', variant: 'default' });
+      } catch (error: any) {
+        console.error('Upsert error:', error);
+        toast({ title: 'Error', description: error.message || 'Error al subir los datos.', variant: 'destructive' });
+      } finally {
+        setUploading(false);
+      }
     }
   };
 

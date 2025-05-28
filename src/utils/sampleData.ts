@@ -1,4 +1,3 @@
-
 // Sample transaction data
 export const sampleTransactions = [
   {
