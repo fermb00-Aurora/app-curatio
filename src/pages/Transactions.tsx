@@ -26,6 +26,7 @@ import { useTransactionTable } from "@/hooks/useTransactionTable";
 import { filterDataByDateRange } from "@/utils/dataStorage";
 import { supabase } from '../../frontend/src/services/supabaseClient';
 import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Transactions = () => {
   const { t } = useTranslation();
@@ -44,6 +45,8 @@ const Transactions = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [transactionToDelete, setTransactionToDelete] = React.useState<any>(null);
   const [deleting, setDeleting] = React.useState(false);
+
+  const { user } = useAuth();
 
   const handleDateRangeChange = (range: { from: Date; to: Date }) => {
     const filtered = filterDataByDateRange(dataStore.transactions, range.from, range.to);
@@ -87,12 +90,15 @@ const Transactions = () => {
   const confirmDelete = async () => {
     if (!transactionToDelete) return;
     setDeleting(true);
-    await supabase.from('transactions').delete().eq('id', transactionToDelete.id);
+    if (transactionToDelete.id) {
+      await supabase.from('transactions').delete().eq('id', transactionToDelete.id);
+    } else {
+      await supabase.from('transactions').delete().eq('numero_doc', transactionToDelete.numeroDoc).eq('user_id', user?.id);
+    }
     setDeleteDialogOpen(false);
     setDeleting(false);
     setTransactionToDelete(null);
-    // Remove from UI
-    setDateFilteredTransactions(prev => prev.filter(t => t.id !== transactionToDelete.id));
+    setDateFilteredTransactions(prev => prev.filter(t => t.numeroDoc !== transactionToDelete.numeroDoc));
   };
 
   return (
