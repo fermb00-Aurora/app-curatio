@@ -1,7 +1,7 @@
 [build]
-  base = "CURATIO.SOLO.FALTA.SUPABASE-main"
-  command = "npm install && npm run build"
-  publish = "dist"
+  base = "curatio-final-main/Desktop/pruebafinalcuratio/CURATIO.SOLO.FALTA.SUPABASE-main"
+  publish = "curatio-final-main/Desktop/pruebafinalcuratio/CURATIO.SOLO.FALTA.SUPABASE-main/dist"
+  command = "npm run build"
 
 [[redirects]]
   from = "/*"
