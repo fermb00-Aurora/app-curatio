@@ -23,8 +23,8 @@ import {
 } from "@/components/ui/table";
 import { useDataContext } from "@/contexts/DataContext";
 import { useTransactionTable } from "@/hooks/useTransactionTable";
-import { filterDataByDateRange } from "@/utils/dataStorage";
-import { supabase } from '../../frontend/src/services/supabaseClient';
+import { filterDataByDateRange } from "@/utils/fileProcessing";
+import { supabase } from "@/services/supabaseClient";
 import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
