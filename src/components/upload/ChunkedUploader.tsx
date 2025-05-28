@@ -176,16 +176,9 @@ export const ChunkedUploader: React.FC<ChunkedUploaderProps> = ({
               <p className="text-gray-600 mb-1">
                 {isDragActive ? t("upload.dropFilesHere") : t("upload.dragAndDrop")}
               </p>
-              <p className="text-xs text-gray-500">
-                {type === "transactions" 
-                  ? t("upload.allowedTransactionsFormats") 
-                  : t("upload.allowedCategoriesFormats")}
+              <p className="text-xs text-gray-500 mb-1">
+                Límite: 50MB o 10 archivos por subida.
               </p>
-              {allowMultiple && (
-                <p className="text-xs text-green-600 mt-1">
-                  {t("upload.multipleFilesAllowed")}
-                </p>
-              )}
               <button
                 type="button"
                 className="mt-2 text-blue-700 hover:underline focus:outline-none text-sm"
