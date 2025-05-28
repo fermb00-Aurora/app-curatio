@@ -235,6 +235,10 @@ const UploadFiles = () => {
           </div>
           
           <div className="mb-6">
+            {/* Disclaimer for upload limits */}
+            <p className="text-xs text-gray-500 mb-2">
+              Límite: 50MB por subida o hasta 10 archivos.
+            </p>
             {fileType && (
               <ChunkedUploader 
                 type={fileType} 
