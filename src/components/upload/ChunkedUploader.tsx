@@ -40,63 +40,6 @@ export const ChunkedUploader: React.FC<ChunkedUploaderProps> = ({
   const [modalIndex, setModalIndex] = useState(0);
   const [uploading, setUploading] = useState(false);
 
-  const handleUpload = async (file: File) => {
-    setIsUploading(true);
-    setUploadProgress(0);
-
-    try {
-      console.log(`Starting upload of ${file.name}, size: ${file.size} bytes`);
-      
-      const data = await readSpreadsheetFile(file, (progress) => {
-        setUploadProgress(progress);
-      });
-      
-      if (data.length === 0) {
-         toast({ title: t("common.warning"), description: t("upload.emptyFile"), variant: "default" });
-         setIsUploading(false);
-         return;
-      }
-      console.log(`Read ${data.length} rows from file`);
-
-      const detectedType = detectFileType(data);
-      if (detectedType && detectedType !== type) {
-        toast({ title: t("common.error"), description: t("upload.typeFileMismatch"), variant: "destructive" });
-        setIsUploading(false); return;
-      }
-
-      let processedData;
-      if (type === "transactions") {
-        processedData = processTransactionsFile(data);
-      } else {
-        processedData = processCategoriesFile(data);
-      }
-      console.log(`Processed ${processedData.length} items for type ${type}`);
-
-      const storageKey = type === "transactions" ? STORAGE_KEYS.transactions : STORAGE_KEYS.categories;
-      const existingData = type === "transactions" ? getTransactionsData() : getCategoriesData();
-      let mergedData;
-      if (type === "transactions") {
-        mergedData = mergeTransactionsData(processedData, existingData as any);
-        await saveTransactionsData(mergedData, false);
-      } else {
-        mergedData = mergeCategoriesData(processedData, existingData as any);
-        await saveCategoriesData(mergedData, false);
-      }
-      console.log(`Merged and saved; now ${mergedData.length} data rows in ${storageKey}`);
-
-      onUploadComplete(file, processedData.slice(0, 5));
-
-      cleanupSourceFile(fileInputRef.current);
-
-    } catch (error) {
-      console.error("Upload error:", error);
-      toast({ title: t("common.error"), description: t("upload.error"), variant: "destructive" });
-    } finally {
-      setIsUploading(false);
-      setUploadProgress(0);
-    }
-  };
-
   const parseFile = async (file: File) => {
     if (file.name.endsWith('.csv')) {
       return new Promise<any[]>((resolve, reject) => {
