@@ -94,6 +94,24 @@ export const ChunkedUploader: React.FC<ChunkedUploaderProps> = ({
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: async (files) => {
+      // Enforce upload limits
+      if (files.length > 10) {
+        toast({
+          title: t("common.error"),
+          description: "No puedes subir más de 10 archivos a la vez.",
+          variant: "destructive",
+        });
+        return;
+      }
+      const totalSize = files.reduce((acc, file) => acc + file.size, 0);
+      if (totalSize > 50 * 1024 * 1024) {
+        toast({
+          title: t("common.error"),
+          description: "El tamaño total de los archivos no puede superar los 50MB.",
+          variant: "destructive",
+        });
+        return;
+      }
       const filesToProcess = allowMultiple ? files : [files[0]];
       for (const file of filesToProcess) {
         if (!file) continue;
