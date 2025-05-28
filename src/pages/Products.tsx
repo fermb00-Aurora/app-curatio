@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
@@ -23,6 +22,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useGenericTable } from "@/hooks/useTransactionTable";
+import { supabase } from '../../frontend/src/services/supabaseClient';
+import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Products = () => {
   const { t } = useTranslation();
@@ -49,6 +51,11 @@ const Products = () => {
     items: allProducts,
     itemsPerPage,
   });
+
+  const { user } = useAuth();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<any>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     refreshData();
@@ -183,6 +190,21 @@ const Products = () => {
     return sortConfig.key === key 
       ? "bg-blue-600 text-white hover:bg-blue-700" 
       : "bg-gray-200 text-gray-700 hover:bg-gray-300";
+  };
+
+  const handleDelete = (product: any) => {
+    setProductToDelete(product);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!productToDelete) return;
+    setDeleting(true);
+    await supabase.from('categories').delete().eq('codigo', productToDelete.codigo).eq('user_id', user?.id);
+    setDeleteDialogOpen(false);
+    setDeleting(false);
+    setProductToDelete(null);
+    setAllProducts(prev => prev.filter(p => p.codigo !== productToDelete.codigo));
   };
 
   return (
@@ -321,6 +343,7 @@ const Products = () => {
                       <TableHead>{t("products.totalSales")}</TableHead>
                       <TableHead>{t("products.margin")}</TableHead>
                       <TableHead>{t("products.stock")}</TableHead>
+                      <TableHead>Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -354,6 +377,10 @@ const Products = () => {
                             <span className={`${getStockColor(product.stockActual)}`}>
                               {product.stockActual}
                             </span>
+                          </TableCell>
+                          <TableCell>
+                            <button className="text-blue-600 hover:underline mr-2" onClick={() => alert('Editar (próximamente)')}>Editar</button>
+                            <button className="text-red-600 hover:underline" onClick={() => handleDelete(product)}>Eliminar</button>
                           </TableCell>
                         </TableRow>
                       ))
@@ -418,6 +445,28 @@ const Products = () => {
           </div>
         </div>
       </div>
+      {/* Delete Confirmation Dialog */}
+      {deleteDialogOpen && (
+        <Dialog open={deleteDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirmar eliminación</DialogTitle>
+              <DialogDescription>
+                ¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer.
+              </DialogDescription>
+            </DialogHeader>
+            <pre className="bg-gray-100 p-2 rounded text-xs mb-2">{JSON.stringify(productToDelete, null, 2)}</pre>
+            <DialogFooter>
+              <button className="px-4 py-2 bg-red-600 text-white rounded" onClick={confirmDelete} disabled={deleting}>
+                {deleting ? 'Eliminando...' : 'Eliminar'}
+              </button>
+              <button className="px-4 py-2 bg-gray-200 rounded" onClick={() => setDeleteDialogOpen(false)} disabled={deleting}>
+                Cancelar
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </MainLayout>
   );
 };
