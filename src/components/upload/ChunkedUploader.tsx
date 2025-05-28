@@ -39,6 +39,7 @@ export const ChunkedUploader: React.FC<ChunkedUploaderProps> = ({
   const [rowsToUpsert, setRowsToUpsert] = useState<any[]>([]);
   const [modalIndex, setModalIndex] = useState(0);
   const [uploading, setUploading] = useState(false);
+  const [storagePath, setStoragePath] = useState('');
 
   const parseFile = async (file: File) => {
     if (file.name.endsWith('.csv')) {
@@ -79,8 +80,8 @@ export const ChunkedUploader: React.FC<ChunkedUploaderProps> = ({
   };
 
   // Upsert rows to Supabase
-  const upsertRows = async (rows: any[], userId: string) => {
-    const rowsWithUser = rows.map(row => ({ ...row, user_id: userId }));
+  const upsertRows = async (rows: any[], userId: string, storagePath: string) => {
+    const rowsWithUser = rows.map(row => ({ ...row, user_id: userId, file_path: storagePath }));
     const { error } = await supabase
       .from(type)
       .upsert(rowsWithUser, { onConflict: type === 'transactions' ? 'user_id,numero_doc' : 'user_id,codigo' });
@@ -97,22 +98,35 @@ export const ChunkedUploader: React.FC<ChunkedUploaderProps> = ({
     setConfirming(true);
     setUploading(true);
     try {
-      const allRows = await parseFile(selectedFile);
+      // 1. Sube el archivo a Storage antes de procesar los datos.
+      const storagePath = `uploads/${user.id}/${type}/${selectedFile.name}`;
+      const { data: storageData, error: storageError } = await supabase
+        .storage
+        .from('uploads')
+        .upload(storagePath, selectedFile);
+      if (storageError) {
+        console.error('Supabase storage upload error:', storageError);
+        toast({ title: 'Error', description: storageError.message, variant: 'destructive' });
+        setConfirming(false); setUploading(false); return;
+      }
+
+      // 2. Si Storage OK, procesa y sube los datos a la tabla, agregando file_path.
+      const data = await parseFile(selectedFile);
       // Validate all rows (simple required field check)
       const requiredKey = type === 'transactions' ? 'numero_doc' : 'codigo';
-      if (allRows.some(row => !row[requiredKey])) {
+      if (data.some(row => !row[requiredKey])) {
         toast({ title: t('common.error'), description: `Faltan campos requeridos (${requiredKey}) en el archivo.`, variant: 'destructive' });
         setConfirming(false); setUploading(false); return;
       }
       // Check for duplicates
-      const duplicates = await checkDuplicates(allRows, user.id);
+      const duplicates = await checkDuplicates(data, user.id);
       if (duplicates.length > 0) {
-        setDuplicateRows(allRows.filter(row => duplicates.includes(row[requiredKey])));
-        setRowsToUpsert(allRows.filter(row => !duplicates.includes(row[requiredKey])));
+        setDuplicateRows(data.filter(row => duplicates.includes(row[requiredKey])));
+        setRowsToUpsert(data.filter(row => !duplicates.includes(row[requiredKey])));
         setModalIndex(0);
       } else {
-        setRowsToUpsert(allRows);
-        await upsertRows(allRows, user.id);
+        setRowsToUpsert(data);
+        await upsertRows(data, user.id, storagePath);
         toast({ title: 'Éxito', description: 'Datos subidos correctamente.', variant: 'default' });
         setShowPreview(false); setSelectedFile(null); setPreviewData([]);
       }
@@ -136,7 +150,7 @@ export const ChunkedUploader: React.FC<ChunkedUploaderProps> = ({
       // All modals done, upsert
       setUploading(true);
       try {
-        await upsertRows(rowsToUpsert.concat(action === 'replace' ? [row] : []), user!.id);
+        await upsertRows(rowsToUpsert.concat(action === 'replace' ? [row] : []), user!.id, storagePath);
         setDuplicateRows([]); setRowsToUpsert([]); setModalIndex(0);
         setShowPreview(false); setSelectedFile(null); setPreviewData([]);
         toast({ title: 'Éxito', description: 'Datos subidos correctamente.', variant: 'default' });
