@@ -25,6 +25,7 @@ import { useGenericTable } from "@/hooks/useTransactionTable";
 import { supabase } from '../../frontend/src/services/supabaseClient';
 import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from '@/hooks/use-toast';
 
 const Products = () => {
   const { t } = useTranslation();
@@ -56,6 +57,10 @@ const Products = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<any>(null);
   const [deleting, setDeleting] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [productToEdit, setProductToEdit] = useState<any>(null);
+  const [editForm, setEditForm] = useState<any>({});
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     refreshData();
@@ -205,6 +210,37 @@ const Products = () => {
     setDeleting(false);
     setProductToDelete(null);
     setAllProducts(prev => prev.filter(p => p.codigo !== productToDelete.codigo));
+  };
+
+  const handleEdit = (product: any) => {
+    setProductToEdit(product);
+    setEditForm({ ...product });
+    setEditDialogOpen(true);
+  };
+
+  const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditForm({ ...editForm, [e.target.name]: e.target.value });
+  };
+
+  const confirmEdit = async () => {
+    if (!productToEdit || !user) return;
+    setEditing(true);
+    try {
+      const { error } = await supabase
+        .from('categories')
+        .update({ ...editForm })
+        .match({ codigo: productToEdit.codigo, user_id: user.id });
+      if (error) throw error;
+      setEditDialogOpen(false);
+      setProductToEdit(null);
+      setEditForm({});
+      setAllProducts(prev => prev.map(p => (p.codigo === productToEdit.codigo ? { ...p, ...editForm } : p)));
+      toast({ title: 'Éxito', description: 'Producto actualizado correctamente.', variant: 'default' });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setEditing(false);
+    }
   };
 
   return (
@@ -379,7 +415,7 @@ const Products = () => {
                             </span>
                           </TableCell>
                           <TableCell>
-                            <button className="text-blue-600 hover:underline mr-2" onClick={() => alert('Editar (próximamente)')}>Editar</button>
+                            <button className="text-blue-600 hover:underline mr-2" onClick={() => handleEdit(product)}>Editar</button>
                             <button className="text-red-600 hover:underline" onClick={() => handleDelete(product)}>Eliminar</button>
                           </TableCell>
                         </TableRow>
@@ -461,6 +497,39 @@ const Products = () => {
                 {deleting ? 'Eliminando...' : 'Eliminar'}
               </button>
               <button className="px-4 py-2 bg-gray-200 rounded" onClick={() => setDeleteDialogOpen(false)} disabled={deleting}>
+                Cancelar
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+      {/* Edit Dialog */}
+      {editDialogOpen && (
+        <Dialog open={editDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Editar producto</DialogTitle>
+              <DialogDescription>Modifica los campos y guarda los cambios.</DialogDescription>
+            </DialogHeader>
+            <form className="space-y-2">
+              {Object.keys(editForm).map((key) => (
+                <div key={key} className="flex flex-col">
+                  <label className="text-xs font-semibold mb-1">{key}</label>
+                  <input
+                    className="border rounded px-2 py-1 text-sm"
+                    name={key}
+                    value={editForm[key] ?? ''}
+                    onChange={handleEditFormChange}
+                    disabled={editing || key === 'codigo'}
+                  />
+                </div>
+              ))}
+            </form>
+            <DialogFooter>
+              <button className="px-4 py-2 bg-blue-600 text-white rounded" onClick={confirmEdit} disabled={editing}>
+                {editing ? 'Guardando...' : 'Guardar'}
+              </button>
+              <button className="px-4 py-2 bg-gray-200 rounded" onClick={() => setEditDialogOpen(false)} disabled={editing}>
                 Cancelar
               </button>
             </DialogFooter>
