@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useTranslation } from "react-i18next";
 import MainLayout from "@/components/layout/MainLayout";
@@ -25,6 +24,8 @@ import {
 import { useDataContext } from "@/contexts/DataContext";
 import { useTransactionTable } from "@/hooks/useTransactionTable";
 import { filterDataByDateRange } from "@/utils/dataStorage";
+import { supabase } from '../../frontend/src/services/supabaseClient';
+import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 const Transactions = () => {
   const { t } = useTranslation();
@@ -39,6 +40,10 @@ const Transactions = () => {
     searchTerm,
     setSearchTerm,
   } = useTransactionTable(dateFilteredTransactions);
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+  const [transactionToDelete, setTransactionToDelete] = React.useState<any>(null);
+  const [deleting, setDeleting] = React.useState(false);
 
   const handleDateRangeChange = (range: { from: Date; to: Date }) => {
     const filtered = filterDataByDateRange(dataStore.transactions, range.from, range.to);
@@ -72,6 +77,22 @@ const Transactions = () => {
     }
     
     return pages;
+  };
+
+  const handleDelete = (transaction: any) => {
+    setTransactionToDelete(transaction);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!transactionToDelete) return;
+    setDeleting(true);
+    await supabase.from('transactions').delete().eq('id', transactionToDelete.id);
+    setDeleteDialogOpen(false);
+    setDeleting(false);
+    setTransactionToDelete(null);
+    // Remove from UI
+    setDateFilteredTransactions(prev => prev.filter(t => t.id !== transactionToDelete.id));
   };
 
   return (
@@ -136,6 +157,7 @@ const Transactions = () => {
                 <TableHead className="px-2 py-2 text-right">Entrega</TableHead>
                 <TableHead className="px-2 py-2 text-right">Devoluc.</TableHead>
                 <TableHead className="px-2 py-2 w-28">Tipo de Pago</TableHead>
+                <TableHead className="px-2 py-2 w-24">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -165,6 +187,10 @@ const Transactions = () => {
                     <TableCell className="px-2 py-2 text-right whitespace-nowrap">{transaction.entrega?.toFixed(2)}€</TableCell>
                     <TableCell className="px-2 py-2 text-right whitespace-nowrap">{transaction.devolucion?.toFixed(2)}€</TableCell>
                     <TableCell className="px-2 py-2 whitespace-nowrap">{transaction.tipoPago}</TableCell>
+                    <TableCell className="px-2 py-2 whitespace-nowrap">
+                      <button className="text-blue-600 hover:underline mr-2" onClick={() => alert('Editar (próximamente)')}>Editar</button>
+                      <button className="text-red-600 hover:underline" onClick={() => handleDelete(transaction)}>Eliminar</button>
+                    </TableCell>
                   </TableRow>
                 ))
               ) : (
@@ -233,6 +259,29 @@ const Transactions = () => {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      {deleteDialogOpen && (
+        <Dialog open={deleteDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirmar eliminación</DialogTitle>
+              <DialogDescription>
+                ¿Estás seguro de que deseas eliminar esta transacción? Esta acción no se puede deshacer.
+              </DialogDescription>
+            </DialogHeader>
+            <pre className="bg-gray-100 p-2 rounded text-xs mb-2">{JSON.stringify(transactionToDelete, null, 2)}</pre>
+            <DialogFooter>
+              <button className="px-4 py-2 bg-red-600 text-white rounded" onClick={confirmDelete} disabled={deleting}>
+                {deleting ? 'Eliminando...' : 'Eliminar'}
+              </button>
+              <button className="px-4 py-2 bg-gray-200 rounded" onClick={() => setDeleteDialogOpen(false)} disabled={deleting}>
+                Cancelar
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </MainLayout>
   );
 };
