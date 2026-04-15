@@ -1,0 +1,268 @@
+================================================================================
+AURORA S-CHAIN — GUIA RAPIDA DE VERIFICACION
+================================================================================
+
+RESUMEN EJECUTIVO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Se han creado 4 documentos de verificacion:
+
+1. CLAUDE.md (1.2 KB) ..................... Documentación completa del proyecto
+2. DATASOURCES_VERIFICATION.md (8.3 KB) ... Reporte detallado de BDs
+3. VERIFICACION_COMPLETA.md (6.5 KB) ..... Resumen ejecutivo
+4. verify_datasources.py (9.2 KB) ........ Script de verificación automática
+
+ESTADO ACTUAL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[OK] PRECIOS (MySQL) ..................... Conectada (26 tablas, 448k registros)
+[!]  AURORA (SQL Server) ................. Configurada, no verificada (sin ODBC local)
+[OK] Backend (Node.js) ................... Listo
+[OK] Frontend (React) .................... Listo
+
+================================================================================
+OPCION A: VERIFICAR INTERFAZ (EN RED CORPORATIVA)
+================================================================================
+
+Paso 1: Verificar Conexion a Ambas BDs
+---------------------------------------
+  python verify_datasources.py
+
+  Esperado:
+    [OK] AURORA (SQL Server): Conectada (19/19 tablas)
+    [OK] PRECIOS (MySQL): Conectada (26 tablas)
+
+Paso 2: Iniciar Backend
+-----------------------
+  cd backend
+  npm install
+  npm run dev
+
+  Esperado:
+    [aurora-schain] up on http://localhost:8010
+
+Paso 3: Iniciar Frontend (otra terminal)
+----------------------------------------
+  cd frontend
+  npm install
+  npm run dev
+
+  Esperado:
+    VITE v5.x.x ready in XXX ms
+    ➜ Local: http://localhost:5173/
+
+Paso 4: Abrir Navegador
+-----------------------
+  http://localhost:5173
+
+  Login:
+    Email: fmorenob@auroracorp.es
+    Password: [tu contraseña ERP Aurora]
+
+  Verificar:
+    ✓ Gráficos con datos reales (inventario, demanda, suministro)
+    ✓ KPIs con valores calculados
+    ✓ Documentación con fórmulas visibles
+
+================================================================================
+OPCION B: VERIFICAR INTERFAZ (FUERA DE RED)
+================================================================================
+
+Paso 1: Iniciar Backend
+-----------------------
+  cd backend
+  npm run dev
+
+  Esperado:
+    [aurora-schain] up on http://localhost:8010
+    (AURORA no conectada es ESPERADO y CORRECTO)
+
+Paso 2: Iniciar Frontend (otra terminal)
+----------------------------------------
+  cd frontend
+  npm run dev
+
+  Esperado:
+    VITE v5.x.x ready in XXX ms
+
+Paso 3: Abrir Navegador
+-----------------------
+  http://localhost:5173
+
+  Login:
+    Email: fmorenob@auroracorp.es
+    Password: [tu contraseña ERP Aurora]
+
+  Verificar:
+    ✓ Interfaz carga correctamente
+    ✓ Visuals aparecen GRISES (esperado, AURORA no disponible)
+    ✓ KPIs metadata funciona
+    ✓ Pestaña Documentación visible
+    ✓ F12 → Console: sin errores de conexión
+
+  DEBUG: Revisar response API
+    F12 → Network → GET /api/eyeon/inventory-data
+    Response debe tener: "blocked": true, "reason": "..."
+
+================================================================================
+VERIFICACION RAPIDA DE ENDPOINTS (Cualquier escenario)
+================================================================================
+
+Health Check (debería funcionar siempre)
+----------------------------------------
+  curl http://localhost:8010/api/health
+
+  Esperado:
+    { "status": "ok" }
+
+Check Inventory Visual (con/sin AURORA)
+----------------------------------------
+  curl http://localhost:8010/api/eyeon/inventory-data
+
+  Si AURORA conectada:
+    { "section": "inventory-data", "visuals": { "inv-breakdown": { "data": [...] } } }
+
+  Si AURORA NO conectada:
+    { "section": "inventory-data", "visuals": { "inv-breakdown": { "blocked": true, "reason": "..." } } }
+
+Check KPIs (debería funcionar siempre)
+---------------------------------------
+  curl http://localhost:8010/api/kpis/por-area
+
+  Esperado:
+    { "section": "kpis-por-area", "kpis": [ { "id": "kpi-ventas", "blocked": true/false, ... } ] }
+
+================================================================================
+ARCHIVOS IMPORTANTES (Para referencia)
+================================================================================
+
+Credenciales (NUNCA COMPARTIR):
+  backend/.env
+    AURORA_DB_HOST=10.10.4.173\SAGE
+    AURORA_DB_USER=MRH
+    AURORA_DB_PASS=Aurora_2019_1+#
+
+    PRECIOS_DB_HOST=10.10.4.175
+    PRECIOS_DB_USER=root
+    PRECIOS_DB_PASS=H4p!mK22yy$9
+
+Documentacion Proyecto:
+  CLAUDE.md ......................... Guía completa (leer primero)
+  REFERENCE.md ...................... Setup detallado
+  docs/eyeon_sections.md ............ Descripción visuals
+
+Backend Source:
+  backend/src/server.ts ............ Entry point Express
+  backend/src/db/mssql.ts .......... Pool SQL Server
+  backend/src/services/eyeon.ts .... Queries AURORA
+  backend/src/routes/eyeon.ts ...... Endpoints dashboard
+
+Frontend Source:
+  frontend/src/App.tsx ............. Router principal
+  frontend/src/pages/SectionPage.tsx  Renderiza visuals
+  frontend/src/pages/KpisPorAreaPage  KPIs
+  frontend/src/lib/api.ts .......... Cliente HTTP
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+Problema: "Connection refused" en backend
+Solucion:
+  1. AURORA no accesible (esperado fuera de red corporativa)
+  2. Frontend igual funciona (visuals grises)
+  3. Sigue los pasos OPCION B
+
+Problema: Visuals todos grises dentro de red corporativa
+Solucion:
+  1. Ejecuta: python verify_datasources.py
+  2. Verifica que AURORA muestre [OK]
+  3. Revisa logs backend: grep "\[eyeon" backend.log
+  4. Check: ¿tabla VArticulosFichaTecnica existe? ¿tiene datos?
+
+Problema: Frontend no carga en http://localhost:5173
+Solucion:
+  1. Revisa que `npm run dev` haya iniciado sin errores
+  2. Verifica puerto 5173 no esté ocupado: netstat -an | grep 5173
+  3. Limpia node_modules: rm -rf frontend/node_modules && npm install
+
+Problema: "Forbidden" en login
+Solucion:
+  1. Verifica email: fmorenob@auroracorp.es (minúsculas)
+  2. Contraseña debe ser la del ERP Aurora
+  3. SCHAIN_ALLOWED_EMAILS en backend/.env
+  4. Verifica en AURORA_AUTH_API_URL si usuario existe
+
+================================================================================
+CHECKLIST DE VERIFICACION
+================================================================================
+
+[] 1. Documentación
+     [] Leer CLAUDE.md (descripción arquitectura)
+     [] Leer DATASOURCES_VERIFICATION.md (estado BDs)
+     [] Leer VERIFICACION_COMPLETA.md (próximos pasos)
+
+[] 2. Backend
+     [] cd backend && npm install (sin errores)
+     [] npm run dev (ver [aurora-schain] up)
+     [] curl http://localhost:8010/api/health → { "status": "ok" }
+     [] Verifica que .env tenga credenciales
+
+[] 3. Frontend
+     [] cd frontend && npm install (sin errores)
+     [] npm run dev (ver VITE ready)
+     [] http://localhost:5173 carga
+     [] Login exitoso (fmorenob@auroracorp.es)
+
+[] 4. Datos
+     [] Si en red corporativa: python verify_datasources.py
+     [] Si gráficos visibles: AURORA conectada OK
+     [] Si gráficos grises: AURORA no accesible (esperado fuera de red)
+     [] KPIs metadata siempre visible
+     [] Docs tab funciona
+
+[] 5. Integración
+     [] Todos los endpoints responden
+     [] Visuals aparecen (con datos o grises)
+     [] No hay errores en F12 console
+     [] Navegación entre secciones funciona
+
+================================================================================
+REFERENCIA RAPIDA: URLS
+================================================================================
+
+Desarrollo Local:
+  Backend:   http://localhost:8010
+  Frontend:  http://localhost:5173
+
+Endpoints Backend:
+  Health:           GET /api/health
+  Master Data:      GET /api/eyeon/master-data
+  Demand:           GET /api/eyeon/demand-data
+  Supply:           GET /api/eyeon/supply-data
+  Inventory:        GET /api/eyeon/inventory-data
+  Current State:    GET /api/eyeon/current-state
+  Optimized State:  GET /api/eyeon/optimized-state
+  KPIs:             GET /api/kpis/por-area
+  Docs:             GET /api/docs
+
+BD Corporativas:
+  AURORA:  10.10.4.173\SAGE:1433  (MRH / Aurora_2019_1+#)
+  PRECIOS: 10.10.4.175:3306       (root / H4p!mK22yy$9)
+
+================================================================================
+CONTACTO & SOPORTE
+================================================================================
+
+Proyecto: Aurora S-Chain
+Autor: Fernando Moreno Borrego (fmorenob@auroracorp.es)
+Fecha: 15 Abril 2026
+
+Si encontras problemas:
+  1. Revisa DATASOURCES_VERIFICATION.md (sección "Conclusión")
+  2. Ejecuta verify_datasources.py para diagnosticar
+  3. Verifica logs backend (stdout del npm run dev)
+  4. Revisa F12 console en frontend
+  5. Consulta REFERENCE.md para detalles de setup
+
+================================================================================

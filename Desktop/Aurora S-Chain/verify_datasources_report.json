@@ -1,0 +1,45 @@
+{
+  "timestamp": "2026-04-15T13:23:28.395230",
+  "aurora": {
+    "connection": false,
+    "tables": {},
+    "products_aurora": 0,
+    "products_lbk": 0,
+    "errors": [
+      "('IM002', '[IM002] [Microsoft][Administrador de controladores ODBC] No se encuentra el nombre del origen de datos y no se especificó ningún controlador predeterminado (0) (SQLDriverConnect)')"
+    ]
+  },
+  "precios": {
+    "connection": true,
+    "tables": [
+      "campos",
+      "config",
+      "escalado",
+      "escalados",
+      "escalados_comerciales",
+      "exportador_plantilla_campos",
+      "exportador_plantilla_filtros",
+      "exportador_plantillas",
+      "gpm_precios_t1",
+      "gpm_precios_t2",
+      "gpm_precios_t3",
+      "historico",
+      "items_contrato_borrar",
+      "packaging",
+      "pdf_condiciones_borrar",
+      "pdf_contratos_borrar",
+      "pdf_contratos_precios_borrar",
+      "precios",
+      "precios_comerciales",
+      "precios_comhist",
+      "precios_escalado",
+      "precios_mejorastecno",
+      "precios_sage",
+      "productos",
+      "tipos",
+      "transportes"
+    ],
+    "errors": []
+  },
+  "summary": "Rojo: AURORA no conectada"
+}
