@@ -1,0 +1,3026 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aurora I+D+i — Buscador de Productos</title>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:#f3f6fb;
+  --bg2:#ffffff;
+  --bg3:#eaf0f9;
+  --border:#d6dfe9;
+  --border2:#c2cfe0;
+  --text:#1a2233;
+  --text2:#4a5f7a;
+  --text3:#8899aa;
+  --accent:#0524de;
+  --accent2:#252eac;
+  --accent-bg:rgba(5,36,222,0.07);
+  --accent-bg2:rgba(5,36,222,0.13);
+  --accent-light:#6fc4fa;
+  --green:#16a34a;
+  --green-bg:rgba(22,163,74,0.10);
+  --red:#dc2626;
+  --red-bg:rgba(220,38,38,0.08);
+  --gold:#d97706;
+  --orange:#ea580c;
+  --orange-bg:rgba(234,88,12,0.08);
+  --purple:#7c3aed;
+  --purple-bg:rgba(124,58,237,0.08);
+  --blue:#2563eb;
+  --blue-bg:rgba(37,99,235,0.08);
+  --font:'Open Sans',system-ui,sans-serif;
+  --display:'Barlow Condensed',sans-serif;
+  --mono:'JetBrains Mono',monospace;
+  --r:6px;
+  --rs:5px;
+  --sh:0 4px 20px rgba(0,0,0,0.08);
+  --shs:0 1px 6px rgba(0,0,0,0.06);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased;}
+
+/* HEADER */
+.hdr{background:linear-gradient(90deg,#0524de 0%,#252eac 100%);border-bottom:1px solid rgba(0,0,0,0.1);padding:0 20px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.logo-a{display:flex;align-items:center;gap:10px;}
+.logo-box{width:32px;height:32px;display:flex;align-items:center;justify-content:center;}
+.brand{font-family:var(--display);font-size:21px;font-weight:900;letter-spacing:0.04em;color:#fff;text-transform:uppercase;line-height:1;}
+.sub{font-family:var(--font);font-size:8px;color:rgba(255,255,255,0.6);font-weight:600;letter-spacing:0.14em;text-transform:uppercase;margin-top:2px;}
+.hdr-stat{font-size:10px;color:rgba(255,255,255,0.7);}
+.hdr-stat b{color:#fbbf24;font-family:var(--mono);font-weight:700;}
+
+/* LAYOUT */
+.main{display:flex;flex:1;overflow:hidden;height:calc(100vh - 52px);}
+.side{width:320px;min-width:320px;background:#ffffff;border-right:1px solid var(--border);display:flex;flex-direction:column;}
+.cnt{flex:1;overflow-y:auto;padding:16px 20px;background:var(--bg);scrollbar-color:var(--border2) transparent;scrollbar-width:thin;}
+.cnt::-webkit-scrollbar{width:5px;}.cnt::-webkit-scrollbar-track{background:transparent;}.cnt::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px;}
+
+/* SEARCH BAR */
+.search-wrap{padding:10px 12px;border-bottom:1px solid var(--border);background:#f8fafc;position:relative;}
+.search-input{width:100%;padding:8px 10px 8px 32px;border:1.5px solid var(--border2);border-radius:var(--r);font-size:12.5px;font-family:var(--font);color:var(--text);background:#f8fafc;transition:border 0.2s,box-shadow 0.2s;caret-color:var(--accent);}
+.search-input::placeholder{color:var(--text3);}
+.search-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(5,36,222,0.1),0 0 16px rgba(5,36,222,0.05);}
+.search-icon{position:absolute;left:22px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--text3);pointer-events:none;}
+.suggest-box{position:absolute;top:100%;left:12px;right:12px;background:#ffffff;border:1px solid var(--accent);border-top:none;border-radius:0 0 var(--r) var(--r);box-shadow:0 12px 40px rgba(0,0,0,0.10),0 0 0 1px rgba(5,36,222,0.1);z-index:60;display:none;max-height:240px;overflow-y:auto;}
+.suggest-item{padding:7px 10px;cursor:pointer;font-size:11px;display:flex;align-items:center;gap:6px;transition:background 0.1s;color:var(--text2);border-bottom:1px solid var(--border);}
+.suggest-item:last-child{border-bottom:none;}
+.suggest-item:hover,.suggest-item.active{background:var(--accent-bg);color:var(--text);}
+.suggest-type{font-size:8px;font-weight:700;padding:1px 5px;border-radius:3px;text-transform:uppercase;font-family:var(--mono);}
+.st-word{background:var(--blue-bg);color:var(--blue);}
+.st-code{background:var(--orange-bg);color:var(--orange);}
+.st-fuzzy{background:var(--purple-bg);color:var(--purple);}
+.suggest-count{font-size:9px;color:var(--text3);margin-left:auto;font-family:var(--mono);}
+
+/* SIDEBAR SECTIONS */
+.side-section{padding:9px 13px;border-bottom:1px solid var(--border);}
+.side-section-title{font-family:var(--display);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--accent);opacity:0.75;margin-bottom:7px;display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;}
+.side-section-title::after{content:'▼';font-size:7px;margin-left:auto;transition:transform 0.2s;opacity:0.5;}
+.side-section.collapsed .side-section-title::after{transform:rotate(-90deg);}
+.side-section.collapsed .ss-body{display:none;}
+.form-area{overflow-y:auto;flex:1;}
+.form-area::-webkit-scrollbar{width:3px;}.form-area::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+
+/* LB/K TOGGLE */
+.type-toggle{display:flex;gap:3px;margin-bottom:6px;}
+.type-btn{flex:1;padding:5px;border-radius:var(--rs);border:1px solid var(--border2);background:#f8fafc;color:var(--text3);font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font);text-align:center;transition:all 0.15s;letter-spacing:0.04em;}
+.type-btn:hover{border-color:var(--accent);color:var(--accent);}
+.type-btn.on{color:#fff !important;background:var(--accent) !important;border-color:transparent;box-shadow:0 1px 8px rgba(5,36,222,0.2);}
+
+/* CATEGORY TREE */
+.cat-tree{margin:0;}
+.cat-item{margin-bottom:1px;}
+.cat-btn{width:100%;padding:5px 7px;border-radius:var(--rs);border:none;background:transparent;color:var(--text2);font-size:11px;font-weight:500;cursor:pointer;font-family:var(--font);text-align:left;display:flex;align-items:center;gap:6px;transition:background 0.1s,color 0.1s;}
+.cat-btn:hover{background:var(--border);color:var(--text);}
+.cat-btn.on{background:var(--accent-bg);color:var(--accent);font-weight:700;}
+.cat-icon{font-size:13px;width:18px;text-align:center;}
+.cat-count{font-size:9px;color:var(--text3);margin-left:auto;font-family:var(--mono);}
+.cat-btn.on .cat-count{color:var(--accent);opacity:0.7;}
+.subcat-list{padding-left:25px;margin-top:1px;}
+.subcat-btn{width:100%;padding:3px 7px;border-radius:3px;border:none;background:transparent;color:var(--text3);font-size:10px;font-weight:400;cursor:pointer;font-family:var(--font);text-align:left;display:flex;align-items:center;gap:5px;transition:background 0.1s,color 0.1s;}
+.subcat-btn:hover{background:var(--border);color:var(--text2);}
+.subcat-btn.on{background:var(--accent-bg);color:var(--accent);font-weight:600;}
+.subcat-count{font-size:8px;color:var(--text3);margin-left:auto;font-family:var(--mono);}
+
+/* MULTI-SELECT DROPDOWN (used for tags, vitamins, minerals, allergens) */
+.ms-wrap{position:relative;width:100%;margin-bottom:6px;}
+.ms-input{width:100%;padding:5px 24px 5px 9px;border:1px solid var(--border2);border-radius:var(--rs);font-size:11px;font-family:var(--font);color:var(--text2);background:#f8fafc;cursor:pointer;transition:border 0.15s;}
+.ms-input::placeholder{color:var(--text3);}
+.ms-input:focus{outline:none;border-color:var(--accent);color:var(--text);}
+.ms-arrow{position:absolute;right:7px;top:50%;transform:translateY(-50%);font-size:8px;color:var(--text3);pointer-events:none;}
+.ms-list{display:none;position:absolute;top:100%;left:0;right:0;max-height:180px;overflow-y:auto;background:#ffffff;border:1px solid var(--accent);border-top:none;border-radius:0 0 var(--rs) var(--rs);z-index:50;box-shadow:0 8px 28px rgba(0,0,0,0.5);}
+.ms-list::-webkit-scrollbar{width:3px;}.ms-list::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+.ms-wrap.open .ms-list{display:block;}
+.ms-opt{padding:5px 9px;font-size:10px;cursor:pointer;display:flex;align-items:center;gap:5px;transition:background 0.1s;color:var(--text2);border-bottom:1px solid var(--border);}
+.ms-opt:last-child{border-bottom:none;}
+.ms-opt:hover{background:var(--accent-bg);color:var(--text);}
+.ms-opt.sel{background:var(--accent-bg);font-weight:600;color:var(--accent);}
+.ms-opt .ms-check{width:11px;height:11px;border:1px solid var(--border2);border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:7px;color:transparent;flex-shrink:0;}
+.ms-opt.sel .ms-check{background:var(--accent);border-color:var(--accent);color:#fff;}
+.ms-opt .ms-cnt{font-size:9px;color:var(--text3);margin-left:auto;font-family:var(--mono);}
+.ms-tags{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px;}
+.ms-tag{display:inline-flex;align-items:center;gap:2px;padding:1px 6px;border-radius:10px;font-size:8px;font-weight:600;background:var(--accent-bg);color:var(--accent);border:1px solid rgba(5,36,222,0.25);}
+.ms-tag-x{cursor:pointer;font-size:9px;opacity:0.5;}.ms-tag-x:hover{opacity:1;}
+.ms-tag-al{background:var(--red-bg);color:var(--red);border-color:rgba(240,100,100,0.3);}
+
+/* FORM ELEMENTS */
+.fg{margin-bottom:6px;}
+.fl{font-family:var(--display);font-size:11px;font-weight:700;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.1em;display:block;}
+
+/* RANGE ROW */
+.range-row{display:flex;align-items:center;gap:4px;margin-bottom:4px;}
+.range-label{font-size:10px;color:var(--text2);width:70px;font-weight:500;flex-shrink:0;}
+.range-input{width:58px;padding:3px 5px;border:1px solid var(--border2);border-radius:3px;font-size:10px;font-family:var(--mono);text-align:center;color:var(--text);background:#f8fafc;}
+.range-input:focus{outline:none;border-color:var(--accent);}
+.range-sep{color:var(--text3);font-size:10px;}
+
+/* CHECK ROW */
+.check-row{display:flex;align-items:center;gap:6px;margin-bottom:3px;padding:2px 0;}
+.check-row input[type=checkbox]{accent-color:var(--accent);width:13px;height:13px;cursor:pointer;}
+.check-row label{font-size:10px;color:var(--text2);font-weight:500;cursor:pointer;}
+
+/* BUTTONS */
+.btn-p{width:100%;padding:8px;border-radius:var(--rs);border:none;background:linear-gradient(135deg,#0524de 0%,#252eac 100%);color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:var(--display);letter-spacing:0.06em;box-shadow:0 2px 14px rgba(5,36,222,0.20);transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:6px;}
+.btn-p:hover{box-shadow:0 4px 22px rgba(5,36,222,0.35);transform:translateY(-1px);}
+.btn-s{padding:5px 10px;border-radius:var(--rs);border:1px solid var(--border2);background:#f8fafc;color:var(--text3);font-size:10px;font-weight:600;cursor:pointer;font-family:var(--font);transition:all 0.15s;}
+.btn-s:hover{border-color:var(--accent);color:var(--accent);}
+.btn-row{display:flex;gap:6px;padding:8px 12px;border-top:1px solid var(--border);background:#f0f4f9;}
+
+/* RESULTS */
+.res-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px;}
+.res-count{font-family:var(--display);font-size:20px;font-weight:900;letter-spacing:0.02em;color:var(--text);}
+.res-sub{font-size:11px;color:var(--text3);font-weight:400;}
+.res-toolbar{display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;}
+.res-toolbar label{font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;}
+.sort-select{padding:4px 22px 4px 8px;border:1px solid var(--border2);border-radius:var(--rs);font-size:10px;font-family:var(--font);color:var(--text);background:#f8fafc;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23334e6b'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 7px center;}
+.sort-select:focus{outline:none;border-color:var(--accent);}
+.sort-dir{padding:3px 7px;border:1px solid var(--border2);border-radius:var(--rs);background:#f8fafc;cursor:pointer;font-size:11px;color:var(--text3);line-height:1;transition:all 0.15s;}
+.sort-dir:hover{border-color:var(--accent);color:var(--accent);}
+.res-filter{padding:4px 8px;border:1px solid var(--border2);border-radius:var(--rs);font-size:10px;font-family:var(--font);color:var(--text);background:#f8fafc;width:160px;}
+.res-filter::placeholder{color:var(--text3);}
+.res-filter:focus{outline:none;border-color:var(--accent);}
+.res-grid{display:grid;grid-template-columns:1fr;gap:4px;}
+
+/* PRODUCT CARD — Compact Row */
+.pcard{background:var(--bg2);border:1px solid var(--border);border-left:2px solid transparent;border-radius:5px;padding:7px 10px;transition:border-color 0.15s,box-shadow 0.15s,background 0.15s;cursor:pointer;}
+.pcard:hover{border-color:var(--accent);border-left-color:var(--accent);box-shadow:0 4px 20px rgba(5,36,222,0.10);background:var(--bg3);}
+@keyframes fadeIn{from{opacity:0;transform:translateY(3px);}to{opacity:1;transform:translateY(0);}}
+.pc-r1{display:flex;align-items:center;gap:5px;min-width:0;}
+.pc-name{font-size:11px;font-weight:600;line-height:1.2;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);}
+.pc-name mark{background:rgba(217,119,6,0.12);color:var(--gold);border-radius:2px;padding:0 1px;}
+.pc-macros{display:flex;gap:2px;flex-shrink:0;margin-left:auto;}
+.pc-macro{font-size:8.5px;font-family:var(--mono);font-weight:600;color:var(--text3);padding:1px 4px;background:var(--border);border-radius:3px;white-space:nowrap;}
+.pc-r2{display:flex;align-items:center;gap:4px;margin-top:2px;min-width:0;}
+.pc-cod{font-size:8px;color:var(--text3);font-family:var(--mono);white-space:nowrap;display:flex;align-items:center;gap:3px;}
+.pc-prefix-badge{font-size:7px;font-weight:800;padding:1px 4px;border-radius:2px;letter-spacing:0.04em;font-family:var(--mono);}
+.pc-prefix-lb{background:rgba(84,153,239,0.18);color:var(--blue);border:1px solid rgba(84,153,239,0.28);}
+.pc-prefix-k{background:rgba(245,136,60,0.16);color:var(--orange);border:1px solid rgba(245,136,60,0.28);}
+.pc-sep{color:var(--border2);font-size:8px;}
+.pc-cat{font-size:8px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pc-tags{display:flex;gap:2px;flex-shrink:0;margin-left:auto;}
+.pc-tag{font-size:7px;font-weight:600;padding:1px 5px;border-radius:3px;white-space:nowrap;}
+.pc-rel{font-size:8px;color:var(--gold);font-family:var(--mono);white-space:nowrap;margin-left:auto;}
+
+/* ACTIVE FILTER CHIPS */
+.active-filters{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;}
+.af-chip{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:12px;font-size:9px;font-weight:600;background:var(--accent-bg);color:var(--accent);border:1px solid rgba(5,36,222,0.2);}
+.af-chip-x{cursor:pointer;opacity:0.5;font-size:10px;margin-left:2px;}.af-chip-x:hover{opacity:1;}
+.af-clear{font-size:9px;font-weight:600;color:var(--red);cursor:pointer;padding:2px 8px;border-radius:12px;border:1px solid rgba(240,100,100,0.2);background:var(--red-bg);}
+.af-clear:hover{background:var(--red);color:#fff;}
+
+/* MODAL */
+.modal-ov{position:fixed;inset:0;background:rgba(10,20,40,0.35);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:1000;animation:fadeIn 0.15s ease;}
+.modal-p{background:#ffffff;border:1px solid var(--border2);border-radius:8px;padding:20px;max-width:700px;width:92%;max-height:88vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,0.15),0 0 0 1px var(--border2);animation:modalIn 0.2s ease;scrollbar-color:var(--border2) transparent;scrollbar-width:thin;}
+.modal-p::-webkit-scrollbar{width:4px;}.modal-p::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px;}
+@keyframes modalIn{from{opacity:0;transform:scale(0.96) translateY(12px);}to{opacity:1;transform:scale(1) translateY(0);}}
+.modal-close{float:right;font-size:16px;cursor:pointer;color:var(--text3);padding:3px 7px;border-radius:4px;border:1px solid transparent;transition:all 0.15s;}.modal-close:hover{background:var(--border);color:var(--text);border-color:var(--border2);}
+.section-box{border:1px solid var(--border);border-radius:var(--r);padding:12px;margin-bottom:10px;background:var(--bg);}
+.section-title{font-family:var(--display);font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text2);margin-bottom:8px;display:flex;align-items:center;gap:5px;}
+
+/* ALLERGEN GROUPS */
+.al-group{margin-bottom:8px;border-radius:5px;padding:7px 9px;}
+.al-group:last-child{margin-bottom:0;}
+.al-contiene{background:rgba(240,100,100,0.08);border:1px solid rgba(240,100,100,0.25);}
+.al-trazas{background:rgba(245,183,49,0.07);border:1px solid rgba(245,183,49,0.25);}
+.al-libre{background:rgba(46,211,156,0.07);border:1px solid rgba(46,211,156,0.25);}
+.al-group-hdr{font-size:10px;font-weight:700;margin-bottom:5px;display:flex;align-items:center;gap:5px;}
+.al-contiene .al-group-hdr{color:var(--red);}
+.al-trazas .al-group-hdr{color:var(--gold);}
+.al-libre .al-group-hdr{color:var(--green);}
+.al-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.al-dot-r{background:var(--red);}
+.al-dot-y{background:var(--gold);}
+.al-dot-g{background:var(--green);}
+.al-items{display:flex;flex-wrap:wrap;gap:4px;}
+.al-item{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;background:rgba(0,0,0,0.03);}
+.al-item-r{color:var(--red);}
+.al-item-y{color:var(--gold);}
+.al-item-g{color:var(--green);}
+.al-em{font-size:12px;}
+.al-name{text-transform:capitalize;}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;}
+.detail-item{font-size:11px;padding:4px 0;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);}
+.detail-item:last-child{border-bottom:none;}
+.detail-label{color:var(--text3);font-weight:600;font-size:9px;text-transform:uppercase;letter-spacing:0.06em;}
+.detail-value{font-weight:700;font-family:var(--mono);font-size:12px;color:var(--accent2);}
+.detail-emoji{font-size:14px;}
+
+/* LOADING / EMPTY */
+.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;text-align:center;}
+.spinner{width:32px;height:32px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:14px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-text{font-size:13px;color:var(--text2);font-weight:500;}
+.loading-sub{font-size:10px;color:var(--text3);margin-top:5px;font-family:var(--mono);}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:50px 20px;text-align:center;}
+.empty-icon{font-size:36px;margin-bottom:12px;opacity:0.25;}
+.empty-title{font-family:var(--display);font-size:17px;font-weight:800;letter-spacing:0.04em;color:var(--text2);margin-bottom:6px;}
+.empty-desc{font-size:12px;color:var(--text3);max-width:360px;line-height:1.6;}
+
+/* PAGINATION */
+.pagination{display:flex;align-items:center;justify-content:center;gap:4px;padding:10px 0;}
+.page-btn{padding:4px 10px;border-radius:var(--rs);border:1px solid var(--border2);background:#f8fafc;color:var(--text3);font-size:10px;font-weight:600;cursor:pointer;font-family:var(--font);transition:all 0.15s;}
+.page-btn:hover{border-color:var(--accent);color:var(--accent);}
+.page-btn:disabled{opacity:0.25;cursor:not-allowed;}
+.page-num{width:28px;height:28px;border-radius:var(--rs);border:1px solid transparent;background:transparent;color:var(--text3);font-size:10px;font-weight:600;cursor:pointer;font-family:var(--mono);display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
+.page-num:hover{background:var(--accent-bg);color:var(--accent);}
+.pn-cur{background:var(--accent);color:#fff !important;border-color:var(--accent);font-weight:800;}
+.pn-cur:hover{background:var(--accent2);color:#fff;}
+.page-dots{font-size:10px;color:var(--text3);padding:0 2px;}
+
+/* PRODUCT CODE PREFIX IN CARD */
+.pc-code-inline{font-size:8.5px;color:var(--text3);font-family:var(--mono);font-weight:500;margin-right:3px;flex-shrink:0;}
+
+/* ESCANDALLO TABLE */
+.esc-table{width:100%;border-collapse:collapse;font-size:10.5px;margin-top:6px;}
+.esc-table th{background:#eef2f7;color:var(--text3);font-family:var(--display);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;padding:5px 8px;text-align:left;border-bottom:1px solid var(--border2);}
+.esc-table th.num{text-align:right;}
+.esc-table td{padding:4px 8px;border-bottom:1px solid var(--border);vertical-align:middle;color:var(--text2);}
+.esc-table td.num{text-align:right;font-family:var(--mono);font-size:10px;color:var(--text);}
+.esc-table tr:last-child td{border-bottom:none;}
+.esc-table tr:hover td{background:var(--accent-bg);}
+.esc-row-top td{background:rgba(234,88,12,0.06) !important;}
+.esc-pct-bar{display:inline-block;height:3px;border-radius:2px;background:var(--accent);margin-left:4px;vertical-align:middle;opacity:0.5;}
+.esc-pct-top .esc-pct-bar{background:var(--orange);opacity:1;}
+.esc-badge-escalado{font-size:8px;padding:1px 4px;border-radius:3px;background:var(--green-bg);color:var(--green);font-weight:700;border:1px solid rgba(46,211,156,0.2);}
+.esc-badge-ultima{font-size:8px;padding:1px 4px;border-radius:3px;background:rgba(245,183,49,0.1);color:var(--gold);font-weight:700;border:1px solid rgba(245,183,49,0.25);}
+.esc-badge-cambio{font-size:8px;padding:1px 4px;border-radius:3px;background:var(--purple-bg);color:var(--purple);font-weight:700;border:1px solid rgba(124,58,237,0.25);}
+.esc-badge-receta{font-size:8px;padding:1px 4px;border-radius:3px;background:var(--blue-bg);color:var(--blue);font-weight:700;border:1px solid rgba(37,99,235,0.25);}
+.esc-badge-pendiente{font-size:8px;padding:1px 4px;border-radius:3px;background:var(--red-bg);color:var(--red);font-weight:700;border:1px solid rgba(240,100,100,0.25);}
+.esc-total-row td{font-weight:800;font-family:var(--mono);background:#eef2f7;border-top:1px solid var(--border2);padding:8px 8px;}
+.esc-total-row td:first-child{border-bottom-left-radius:4px;}
+.esc-total-row td:last-child{border-bottom-right-radius:4px;}
+.esc-orden{font-size:8px;color:var(--text3);font-family:var(--mono);background:var(--border);padding:1px 4px;border-radius:3px;margin-right:4px;}
+
+/* CARD INLINE ESCANDALLO TOGGLE */
+.pcard-toggle{background:none;border:none;cursor:pointer;font-size:9px;color:var(--text3);padding:1px 4px;border-radius:3px;line-height:1;flex-shrink:0;transition:color 0.15s,background 0.15s;font-family:var(--mono);font-weight:700;}
+.pcard-toggle:hover{color:var(--accent);background:var(--accent-bg);}
+.pcard-toggle.open{color:var(--accent);background:var(--accent-bg);}
+.esc-inline{margin-top:6px;border-top:1px solid var(--border);padding-top:6px;animation:fadeIn 0.15s ease;}
+.esc-inline-table{width:100%;border-collapse:collapse;font-size:9.5px;}
+.esc-inline-table th{color:var(--text3);font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;padding:3px 5px;border-bottom:1px solid var(--border);text-align:left;}
+.esc-inline-table th.r{text-align:right;}
+.esc-inline-table td{padding:3px 5px;border-bottom:1px solid var(--border);vertical-align:middle;font-size:9px;color:var(--text2);}
+.esc-inline-table td.r{text-align:right;font-family:var(--mono);font-size:9px;color:var(--text);}
+.esc-inline-table tr.esc-top td{background:rgba(234,88,12,0.06);}
+.esc-inline-table tr:hover td{background:var(--accent-bg);}
+.esc-inline-footer{display:flex;gap:12px;flex-wrap:wrap;margin-top:6px;padding:7px 5px 4px;border-top:1px solid var(--border2);background:#eef2f7;border-radius:0 0 4px 4px;}
+.esc-stat{font-size:9px;}
+.esc-stat .lbl{color:var(--text3);font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;display:block;}
+.esc-stat .val{font-weight:800;font-family:var(--mono);font-size:11px;color:var(--text);}
+.esc-stat .val.hl{color:var(--accent2);}
+.esc-coste-input{font-weight:800;font-family:var(--mono);font-size:11px;color:var(--accent2);background:transparent;border:none;border-bottom:1px dashed var(--accent2);padding:0 2px;width:90px;outline:none;cursor:text;}
+.esc-coste-input:hover,.esc-coste-input:focus{background:rgba(80,130,200,0.07);border-bottom-style:solid;}
+.esc-coste-input-full{font-size:13px;width:110px;margin-top:2px;}
+.esc-pbar{display:inline-block;height:3px;border-radius:2px;background:var(--accent);margin-left:3px;vertical-align:middle;opacity:0.4;}
+.esc-pbar.top{background:var(--orange);opacity:0.9;}
+.esc-loading{font-size:9px;color:var(--text3);padding:6px 5px;font-style:italic;}
+
+/* CALCULAR PRECIO */
+.calc-precio-box{margin-top:10px;padding:8px 10px;background:var(--card-bg);border:1px solid var(--border2);border-radius:5px;}
+.calc-precio-box .section-title{font-size:10px;margin-bottom:6px;}
+.calc-precio-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;}
+.calc-precio-row label{font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:0.06em;white-space:nowrap;}
+.calc-precio-row input[type=number]{width:100px;padding:3px 6px;font-size:11px;font-family:var(--mono);background:var(--bg);border:1px solid var(--border2);border-radius:3px;color:var(--text);outline:none;}
+.calc-precio-row input[type=number]:focus{border-color:var(--accent);}
+.btn-calc{padding:4px 12px;font-size:10px;font-weight:700;font-family:var(--display);letter-spacing:0.06em;background:var(--accent2);color:#fff;border:none;border-radius:3px;cursor:pointer;transition:opacity 0.15s;text-transform:uppercase;}
+.btn-calc:hover{opacity:0.85;}
+.btn-calc:disabled{opacity:0.4;cursor:not-allowed;}
+.calc-result{margin-top:6px;}
+.calc-result-grid{display:flex;gap:12px;flex-wrap:wrap;padding:6px 8px;background:var(--accent-bg);border-radius:4px;border:1px solid rgba(99,179,237,0.15);}
+.calc-kpi{font-size:9px;}
+.calc-kpi .lbl{color:var(--text3);font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;display:block;}
+.calc-kpi .val{font-weight:800;font-family:var(--mono);font-size:12px;color:var(--text);}
+.calc-kpi .val.hl{color:var(--accent2);font-size:14px;}
+.calc-escalados{display:flex;gap:6px;margin-top:5px;flex-wrap:wrap;}
+.calc-esc-chip{font-size:8.5px;font-family:var(--mono);padding:2px 6px;background:var(--card-bg);border:1px solid var(--border2);border-radius:3px;color:var(--text2);}
+.calc-esc-chip span:first-child{color:var(--text3);font-size:7px;display:block;}
+.calc-fuentes-note{margin-top:8px;padding:7px 9px 8px;background:var(--card-bg);border:1px solid var(--border2);border-radius:4px;font-size:9px;}
+.calc-fuentes-title{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:0.06em;font-size:8.5px;}
+.calc-fuentes-total{color:var(--accent2);font-family:var(--mono);font-weight:800;text-transform:none;letter-spacing:0;font-size:10px;}
+.calc-fuentes-list{display:flex;flex-direction:column;gap:3px;}
+.calc-fuente-row{display:flex;align-items:center;gap:6px;padding:2px 0;font-size:9px;color:var(--text2);}
+.calc-fuente-row .calc-fuente-lbl{flex:1;color:var(--text);font-weight:600;}
+.calc-fuente-row .calc-fuente-val{color:var(--text3);font-family:var(--mono);font-weight:700;white-space:nowrap;}
+.calc-fuentes-warn{margin-top:6px;padding:4px 6px;background:var(--red-bg);color:var(--red);border-radius:3px;font-size:8.5px;font-weight:700;line-height:1.35;}
+.calc-fuentes-help{margin-top:5px;font-size:8px;color:var(--text3);line-height:1.4;font-style:italic;}
+/* Botón compacto en tarjeta inline */
+.btn-calc-inline{margin-top:5px;padding:2px 8px;font-size:8px;font-weight:700;font-family:var(--display);letter-spacing:0.05em;background:var(--accent2);color:#fff;border:none;border-radius:3px;cursor:pointer;text-transform:uppercase;opacity:0.85;}
+.btn-calc-inline:hover{opacity:1;}
+.calc-inline-result{font-size:9px;font-family:var(--mono);color:var(--accent2);margin-left:6px;font-weight:700;}
+
+/* VIEW SELECTOR TABS */
+
+/* SIMILARITY MODE */
+.sim-mode-bar{display:flex;gap:0;border-bottom:1px solid var(--border);background:#f0f4f9;}
+.sim-tab{flex:1;padding:7px 8px;border:none;border-radius:0;font-family:var(--display);font-size:12px;font-weight:700;cursor:pointer;color:var(--text3);background:transparent;transition:all 0.15s;letter-spacing:0.08em;text-transform:uppercase;border-bottom:2px solid transparent;}
+.sim-tab:not(.active):hover{background:var(--border);color:var(--text2);}
+.sim-tab.active{background:#f0f4f9;color:var(--accent);border-bottom-color:var(--accent);}
+.sim-ref-none{font-size:11px;color:var(--text3);text-align:center;padding:24px 8px;line-height:1.7;}
+.sim-ref-card{background:var(--accent-bg);border:1px solid rgba(5,36,222,0.2);border-radius:var(--r);padding:9px 10px;margin-bottom:6px;}
+.sim-ref-hdr{display:flex;align-items:center;gap:5px;margin-bottom:2px;}
+.sim-ref-name{font-size:11px;font-weight:600;color:var(--text);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sim-ref-cod{font-size:8px;color:var(--text3);font-family:var(--mono);margin-bottom:3px;}
+.sim-ref-cat{font-size:9px;color:var(--accent);margin-bottom:5px;}
+.sim-ref-macros{display:flex;gap:3px;flex-wrap:wrap;}
+.sim-ref-macro{font-size:8px;font-family:var(--mono);font-weight:700;padding:1px 5px;border-radius:3px;background:var(--border);color:var(--text2);}
+.sim-dims-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text3);margin-bottom:4px;display:flex;align-items:center;justify-content:space-between;}
+.sim-dims{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:8px;}
+.sim-dim-chip{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:10px;font-size:9px;font-weight:600;cursor:pointer;border:1px solid transparent;transition:all 0.15s;user-select:none;}
+.sim-dim-chip.active{background:var(--accent-bg);color:var(--accent);border-color:rgba(5,36,222,0.25);}
+.sim-dim-chip.inactive{background:var(--border);color:var(--text3);border-color:transparent;text-decoration:line-through;opacity:0.5;}
+.sim-dim-chip .sdx{font-size:9px;opacity:0.5;}.sim-dim-chip:hover .sdx{opacity:1;}
+.sim-type-row{display:flex;gap:3px;margin-bottom:6px;}
+.sim-type-btn{flex:1;padding:4px;border-radius:var(--rs);border:1px solid var(--border2);background:#f8fafc;color:var(--text3);font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font);text-align:center;transition:all 0.15s;}
+.sim-type-btn:hover{border-color:var(--accent);}
+.sim-type-btn.on{color:#fff !important;background:var(--accent) !important;border-color:transparent;}
+/* Similarity result cards */
+.sim-card{background:var(--bg2);border:1px solid var(--border);border-left:2px solid transparent;border-radius:5px;padding:7px 10px;transition:border-color 0.15s,box-shadow 0.15s;cursor:pointer;position:relative;overflow:hidden;}
+.sim-card:hover{border-color:var(--accent);border-left-color:var(--accent);box-shadow:0 4px 20px rgba(5,36,222,0.12);}
+.sim-score-badge{display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;font-family:var(--mono);color:#fff;padding:1px 6px;border-radius:4px;min-width:38px;flex-shrink:0;}
+.sim-score-bar-wrap{height:2px;background:var(--border2);border-radius:2px;overflow:hidden;margin:4px 0 3px;}
+.sim-score-bar-fill{height:100%;border-radius:2px;transition:width 0.4s ease;}
+.sim-breakdown{display:flex;gap:2px;flex-wrap:wrap;margin-top:3px;}
+.sim-bd-item{font-size:7px;font-weight:600;padding:1px 5px;border-radius:3px;background:var(--border);color:var(--text3);white-space:nowrap;}
+.sim-bd-item.hi{background:var(--accent-bg);color:var(--accent);}
+.sim-bd-item.mid{background:var(--blue-bg);color:var(--blue);}
+.sim-empty-hint{background:var(--orange-bg);border:1px solid rgba(245,136,60,0.25);border-radius:var(--r);padding:10px 12px;margin-bottom:12px;font-size:11px;color:var(--orange);line-height:1.5;}
+.sim-results-hdr{margin-bottom:10px;}
+.sim-results-title{font-family:var(--display);font-size:17px;font-weight:800;letter-spacing:0.04em;}
+.sim-results-sub{font-size:10px;color:var(--text3);margin-top:2px;}
+.sim-bd-toggle{display:block;width:100%;margin-top:5px;padding:3px 8px;border:1px solid var(--border2);border-radius:var(--rs);background:var(--border);color:var(--text3);font-size:9px;font-weight:600;cursor:pointer;text-align:left;font-family:var(--font);transition:all 0.15s;}
+.sim-bd-toggle:hover,.sim-bd-toggle.open{background:var(--accent-bg);color:var(--accent);border-color:rgba(5,36,222,0.25);}
+.sim-bd-expanded{margin-top:4px;padding:6px 8px;background:var(--border);border:1px solid var(--border2);border-radius:var(--rs);display:flex;flex-direction:column;gap:3px;}
+.sim-bd-row{display:grid;grid-template-columns:90px 1fr auto;align-items:baseline;gap:6px;font-size:9px;line-height:1.5;}
+.sim-bd-dim{font-weight:700;color:var(--text2);}
+.sim-bd-detail{color:var(--text3);min-width:0;}
+.sim-bd-pct{font-weight:700;font-family:var(--mono);white-space:nowrap;}
+.sim-bd-match{color:var(--green);font-weight:700;}
+.sim-bd-nomatch{color:var(--red);font-weight:700;}
+
+/* COMPARISON VIEW */
+.sim-compare{margin-top:6px;background:#f3f6fb;border:1px solid var(--border2);border-radius:var(--r);overflow:hidden;}
+.sim-compare-hdr{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--bg3);border-bottom:1px solid var(--border2);}
+.sim-compare-title{font-size:10px;font-weight:700;color:var(--text);}
+.sim-compare-scores{display:flex;gap:6px;align-items:center;}
+.sim-conf-badge{font-size:8px;font-weight:700;font-family:var(--mono);padding:1px 6px;border-radius:3px;}
+.sim-conf-hi{background:var(--green-bg);color:var(--green);}
+.sim-conf-md{background:var(--blue-bg);color:var(--blue);}
+.sim-conf-lo{background:var(--orange-bg);color:var(--orange);}
+.sim-compare-cols{display:grid;grid-template-columns:100px 1fr 1fr 44px;border-bottom:1px solid var(--border);font-size:9px;}
+.sim-compare-cols.hdr-row{background:var(--bg3);font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;font-size:8px;}
+.sim-compare-cols > div{padding:5px 8px;border-right:1px solid var(--border);display:flex;align-items:center;min-height:28px;}
+.sim-compare-cols > div:last-child{border-right:none;justify-content:center;}
+.sim-compare-cols .dim-label{font-weight:700;color:var(--text2);font-size:9px;}
+.sim-compare-cols .dim-icon{margin-right:4px;font-size:10px;}
+.sim-verd-match{color:var(--green);}
+.sim-verd-similar{color:var(--blue);}
+.sim-verd-different{color:var(--orange);}
+.sim-verd-no_data{color:var(--text3);font-style:italic;}
+.sim-vpill{font-size:8px;font-weight:800;font-family:var(--mono);padding:1px 5px;border-radius:3px;display:inline-block;}
+.sim-vpill-match{background:var(--green-bg);color:var(--green);}
+.sim-vpill-similar{background:var(--blue-bg);color:var(--blue);}
+.sim-vpill-different{background:var(--orange-bg);color:var(--orange);}
+.sim-vpill-no_data{background:var(--border);color:var(--text3);}
+.sim-macro-bars{display:flex;flex-direction:column;gap:2px;width:100%;}
+.sim-macro-bar-row{display:grid;grid-template-columns:56px 1fr 36px 1fr 36px;align-items:center;gap:4px;font-size:8px;font-family:var(--mono);}
+.sim-macro-bar-label{font-weight:600;color:var(--text3);text-align:right;}
+.sim-macro-bar{height:6px;border-radius:3px;min-width:2px;}
+.sim-macro-bar-ref{background:var(--accent);opacity:0.8;}
+.sim-macro-bar-cand{background:var(--purple);opacity:0.8;}
+.sim-macro-val{font-weight:700;font-size:7px;white-space:nowrap;}
+.sim-macro-val-ref{color:var(--accent);}
+.sim-macro-val-cand{color:var(--purple);}
+.sim-explain-row{padding:8px 10px;border-top:1px solid var(--border);font-size:9px;color:var(--text3);line-height:1.6;background:var(--bg2);}
+.sim-explain-row b{color:var(--text2);font-weight:600;}
+.sim-dim-explain{font-size:8px;color:var(--text3);margin-top:1px;line-height:1.4;font-style:italic;}
+.sim-allergen-list{display:flex;flex-wrap:wrap;gap:2px;}
+.sim-allergen-chip{font-size:7px;padding:1px 4px;border-radius:2px;font-weight:600;}
+.sim-allergen-contains{background:var(--red-bg);color:var(--red);}
+.sim-allergen-traces{background:var(--orange-bg);color:var(--orange);}
+.sim-token-common{font-size:7px;padding:1px 4px;border-radius:2px;background:var(--accent-bg);color:var(--accent);font-weight:600;}
+
+/* WEIGHT SLIDERS */
+.sim-weights-section{padding:6px 0;border-top:1px solid var(--border);}
+.sim-weights-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text3);margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;}
+.sim-weights-title .reset-weights{font-size:8px;color:var(--accent);cursor:pointer;text-decoration:underline;font-weight:600;}
+.sim-weight-row{display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:10px;}
+.sim-weight-label{width:90px;font-weight:600;color:var(--text2);font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sim-weight-slider{flex:1;-webkit-appearance:none;appearance:none;height:5px;border-radius:3px;background:var(--border);outline:none;cursor:pointer;}
+.sim-weight-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:50%;background:var(--accent);cursor:pointer;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.2);}
+.sim-weight-slider::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--accent);cursor:pointer;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.2);}
+.sim-weight-val{width:32px;text-align:right;font-family:var(--mono);font-weight:700;font-size:10px;color:var(--accent);}
+.sim-weights-total{font-size:9px;color:var(--text3);text-align:right;margin-top:2px;font-family:var(--mono);}
+
+/* SCATTER CHART */
+.sim-scatter-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px 20px;margin-bottom:14px;}
+.sim-scatter-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;}
+.sim-scatter-box{position:relative;width:100%;height:420px;}
+
+/* PRICE HISTORY CHART */
+.sim-price-history{margin-top:8px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);}
+.sim-price-title{font-size:10px;font-weight:700;color:var(--text);margin-bottom:6px;}
+.sim-price-canvas{width:100%;height:180px;}
+.sim-price-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.ph-escalados{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
+.ph-esc-chip{font-size:8px;font-family:var(--mono);padding:2px 6px;border-radius:3px;background:var(--accent-bg);color:var(--accent);font-weight:600;}
+.ph-meta{font-size:8px;color:var(--text3);margin-top:4px;line-height:1.5;}
+.ph-meta b{color:var(--text2);}
+
+/* SCATTER CONFIG */
+.scatter-config{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:10px;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);}
+.scatter-cfg-group{display:flex;align-items:center;gap:5px;}
+.scatter-cfg-label{font-size:9px;font-weight:700;color:var(--accent2);text-transform:uppercase;letter-spacing:0.06em;}
+.scatter-cfg-sel{font-size:11px;padding:4px 8px;border:1.5px solid var(--border2);border-radius:var(--rs);background:#fff;color:var(--text);font-family:var(--font);cursor:pointer;transition:border 0.15s,box-shadow 0.15s;}
+.scatter-cfg-sel:hover{border-color:var(--accent);}
+.scatter-cfg-sel:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(5,36,222,0.1);}
+.scatter-legend-inline{display:flex;gap:14px;margin-top:10px;flex-wrap:wrap;padding:6px 0;}
+.scatter-legend-item{font-size:10px;display:flex;align-items:center;gap:5px;color:var(--text2);font-weight:500;}
+.scatter-legend-dot{width:10px;height:10px;border-radius:50%;display:inline-block;border:1px solid rgba(0,0,0,0.1);}
+
+/* RESPONSIVE */
+@media(max-width:900px){
+  .side{width:280px;min-width:260px;}
+  .res-grid{grid-template-columns:1fr;}
+}
+@media(max-width:640px){
+  .main{flex-direction:column;}
+  .side{width:100%;min-width:0;max-height:50vh;border-right:none;border-bottom:1px solid var(--border);}
+  .cnt{height:auto;}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="logo-a">
+    <div class="logo-box"><img src="/logo" width="34" height="34" style="border-radius:6px;object-fit:contain;" alt="Aurora"/></div>
+    <div><div class="brand">Aurora I+D+i</div><div class="sub" id="hdr-subtitle">Buscador Inteligente de Productos</div></div>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div class="hdr-stat" id="hdr-stat">Conectando...</div>
+    <div id="hdr-user" style="display:none;font-size:11px;color:rgba(255,255,255,0.9);font-weight:600;white-space:nowrap;"></div>
+    <button onclick="doLogout()" style="padding:4px 10px;border-radius:5px;border:1px solid rgba(255,255,255,0.35);background:rgba(255,255,255,0.15);color:#fff;font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font);transition:all 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">Salir</button>
+  </div>
+</div>
+
+<div class="main">
+  <!-- SIDEBAR -->
+  <div class="side">
+    <!-- MODE TOGGLE -->
+    <div class="sim-mode-bar">
+      <button class="sim-tab active" data-mode="search" onclick="switchMode('search')">&#128269; Buscar</button>
+      <button class="sim-tab" data-mode="sim" onclick="switchMode('sim')">&#129516; Similares</button>
+    </div>
+    <!-- SEARCH BAR -->
+    <div class="search-wrap">
+      <span class="search-icon">&#128269;</span>
+      <input class="search-input" id="search-input" placeholder="Buscar productos, codigos, ingredientes..."
+             oninput="onSearchInput(this.value)" onkeydown="onSearchKeydown(event)" autocomplete="off">
+      <div class="suggest-box" id="suggest-box"></div>
+    </div>
+    <!-- FILTERS -->
+    <div id="panel-filters" class="form-area"></div>
+    <!-- SIMILARITY PANEL -->
+    <div id="panel-sim" class="form-area" style="display:none"></div>
+    <!-- ACTION BUTTONS -->
+    <div class="btn-row" id="btn-row-search">
+      <button class="btn-p" style="flex:1" onclick="currentOffset=0;doSearch()">Buscar</button>
+      <button class="btn-s" onclick="clearAllFilters()">Limpiar</button>
+    </div>
+    <div class="btn-row" id="btn-row-sim" style="display:none">
+      <button class="btn-p" style="flex:1" onclick="doSimilarSearch()">Actualizar</button>
+      <button class="btn-s" onclick="clearSimFilters()">Limpiar</button>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="cnt" id="content-area">
+    <div class="loading" id="loading-state">
+      <div class="spinner"></div>
+      <div class="loading-text">Inicializando motor de busqueda...</div>
+      <div class="loading-sub">Cargando clasificación de productos...</div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-ov" id="modal" style="display:none;" onclick="closeModal()">
+  <div class="modal-p" onclick="event.stopPropagation()" id="modal-body"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// AURORA I+D+i v2.1 — Intelligent Product Search Engine
+// ═══════════════════════════════════════════════════════════════════
+
+// ─── AUTH GUARD ────────────────────────────────────────────────────
+(function() {
+  const token = localStorage.getItem('aurora_token');
+  if (!token) { window.location.replace('/login'); throw new Error('redirect'); }
+
+  // Patch fetch: add Authorization header + redirect on 401
+  const _orig = window.fetch.bind(window);
+  let _redirecting = false;
+  const _kickToLogin = () => {
+    if (_redirecting) return;
+    _redirecting = true;
+    localStorage.removeItem('aurora_token');
+    localStorage.removeItem('aurora_user');
+    window.location.replace('/login');
+  };
+  window.fetch = function(url, opts = {}) {
+    const t = localStorage.getItem('aurora_token');
+    if (t) opts = { ...opts, headers: { 'Authorization': 'Bearer ' + t, ...(opts.headers || {}) } };
+    return _orig(url, opts).then(resp => {
+      if (resp.status === 401) _kickToLogin();
+      return resp;
+    });
+  };
+
+  // Pre-validate token ASYNCHRONOUSLY (sync XHR hangs the browser if the
+  // server stalls or is restarted — Chrome has it deprecated on the main thread).
+  // The patched fetch above already redirects to /login on any 401, so the first
+  // protected API call will naturally kick the user out if the token is stale.
+  // We still fire an explicit check to speed up the redirect for stale sessions.
+  fetch('/api/auth/me').catch(() => {});
+
+  // Show user name in header
+  try {
+    const u = JSON.parse(localStorage.getItem('aurora_user') || '{}');
+    if (u.nombre) {
+      const el = document.getElementById('hdr-user');
+      if (el) { el.textContent = u.nombre; el.style.display = 'block'; }
+    }
+  } catch {}
+})();
+
+function doLogout() {
+  const token = localStorage.getItem('aurora_token');
+  if (token) fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+  localStorage.removeItem('aurora_token');
+  localStorage.removeItem('aurora_user');
+  window.location.replace('/login');
+}
+
+const API = window.location.origin;
+
+// ─── STATE ─────────────────────────────────────────────────────────
+let categories = [];
+let selectedCategory = null;
+let selectedSubcategory = null;
+let selectedProductType = null;
+let vitaminOptions = [];
+let mineralOptions = [];
+let allergenOptions = [];
+let excluirTrazas = false;
+let currentResults = null;
+let currentOffset = 0;
+const PAGE_SIZE = 10;
+
+// Sort state
+let sortField = "CodigoArticulo";
+let sortDir = "asc";
+let resultFilter = "";
+
+// Suggest state
+let suggestTimer = null;
+let suggestIdx = -1;
+let suggestItems = [];
+
+// Tag dropdown data (loaded once)
+let tagData = { flavor: [], protein_source: [], coating: [] };
+
+// ─── INIT ──────────────────────────────────────────────────────────
+function _fetchJSONWithTimeout(url, ms = 20000) {
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { signal: ctrl.signal })
+    .then(r => { clearTimeout(tid); return r.json(); });
+}
+
+async function init() {
+  // Watchdog: if init hangs past 25s, show a recoverable error instead of
+  // leaving the user stuck on the spinner.
+  const watchdog = setTimeout(() => {
+    const el = document.getElementById("loading-state");
+    if (el && el.style.display !== "none") {
+      el.innerHTML = `
+        <div style="color:var(--red);font-size:15px;font-weight:700;margin-bottom:8px;">La inicializacion tarda demasiado</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:12px;">El servidor no responde. Verifica que run.py esta corriendo en el puerto 8000.</div>
+        <button class="btn-p" onclick="location.reload()">Reintentar</button>`;
+    }
+  }, 25000);
+
+  try {
+    const [catRes, vRes, minRes, alRes, flavorRes, proteinRes, coatingRes] = await Promise.all([
+      _fetchJSONWithTimeout(`${API}/api/categories`),
+      _fetchJSONWithTimeout(`${API}/api/filters/vitaminas`),
+      _fetchJSONWithTimeout(`${API}/api/filters/minerales`),
+      _fetchJSONWithTimeout(`${API}/api/filters/alergenos`),
+      _fetchJSONWithTimeout(`${API}/api/filters/tags?tag_type=flavor`),
+      _fetchJSONWithTimeout(`${API}/api/filters/tags?tag_type=protein_source`),
+      _fetchJSONWithTimeout(`${API}/api/filters/tags?tag_type=coating`),
+    ]);
+    clearTimeout(watchdog);
+    categories = catRes.categories || [];
+    vitaminOptions = vRes.vitaminas || [];
+    mineralOptions = minRes.minerales || [];
+    allergenOptions = alRes.alergenos || [];
+    tagData.flavor = (flavorRes.items || []);
+    tagData.protein_source = (proteinRes.items || []);
+    tagData.coating = (coatingRes.items || []);
+
+    const total = categories.reduce((s, c) => s + c.count, 0);
+    document.getElementById("hdr-stat").innerHTML = `Base de datos AURORA &middot; <b>${total.toLocaleString()}</b> productos indexados`;
+
+    renderFilters();
+    loadDefaultWeights();  // load sim weight defaults (non-blocking)
+    await doSearch();
+    clearTimeout(watchdog);
+    document.getElementById("loading-state").style.display = "none";
+  } catch (e) {
+    clearTimeout(watchdog);
+    document.getElementById("loading-state").innerHTML = `
+      <div style="color:var(--red);font-size:15px;font-weight:700;margin-bottom:8px;">Error de conexion</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:12px;">${esc(e.message)}<br>Verifica que run.py esta corriendo.</div>
+      <button class="btn-p" onclick="location.reload()">Reintentar</button>`;
+  }
+}
+
+// ─── SEARCH AUTOCOMPLETE ──────────────────────────────────────────
+function onSearchInput(val) {
+  clearTimeout(suggestTimer);
+  if (val.length < 2) { hideSuggest(); return; }
+  suggestTimer = setTimeout(() => fetchSuggestions(val), 200);
+}
+
+async function fetchSuggestions(q) {
+  try {
+    const res = await fetch(`${API}/api/search/suggest?q=${encodeURIComponent(q)}`);
+    const data = await res.json();
+    suggestItems = data.suggestions || [];
+    suggestIdx = -1;
+    renderSuggestions();
+  } catch { hideSuggest(); }
+}
+
+function renderSuggestions() {
+  const box = document.getElementById("suggest-box");
+  if (!suggestItems.length) { hideSuggest(); return; }
+  box.style.display = "block";
+  box.innerHTML = suggestItems.map((s, i) => {
+    const isLB = s.code && s.code.startsWith('LB');
+    const prefixBadge = s.code
+      ? `<span class="suggest-type ${isLB ? 'st-code' : 'st-fuzzy'}">${isLB ? 'LB' : 'K'}</span>`
+      : '';
+    const codeBadge = s.code ? `<span class="suggest-count">${esc(s.code)}</span>` : '';
+    return `<div class="suggest-item ${i === suggestIdx ? 'active' : ''}" onmousedown="selectSuggestion(${i})">
+      ${prefixBadge}
+      <span>${esc(s.text)}</span>
+      ${codeBadge}
+    </div>`;
+  }).join("");
+}
+
+function selectSuggestion(idx) {
+  const s = suggestItems[idx];
+  if (!s) return;
+  hideSuggest();
+  if (simMode) {
+    if (s.code) setSimReference(s.code, s.text);
+    return;
+  }
+  if (s.code) {
+    showDetail(s.code);
+  } else {
+    document.getElementById("search-input").value = s.text;
+    currentOffset = 0;
+    doSearch();
+  }
+}
+
+function hideSuggest() {
+  document.getElementById("suggest-box").style.display = "none";
+  suggestItems = [];
+  suggestIdx = -1;
+}
+
+function onSearchKeydown(e) {
+  if (e.key === "ArrowDown") { e.preventDefault(); suggestIdx = Math.min(suggestIdx + 1, suggestItems.length - 1); renderSuggestions(); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); suggestIdx = Math.max(suggestIdx - 1, -1); renderSuggestions(); }
+  else if (e.key === "Enter") { e.preventDefault(); if (suggestIdx >= 0 && suggestItems[suggestIdx]) { selectSuggestion(suggestIdx); } else if (simMode) { const v = document.getElementById("search-input").value.trim(); if (v) setSimReference(v, v); } else { hideSuggest(); currentOffset = 0; doSearch(); } }
+  else if (e.key === "Escape") hideSuggest();
+}
+
+// Close suggestions on outside click
+document.addEventListener("click", e => {
+  if (!e.target.closest(".search-wrap")) hideSuggest();
+  if (!e.target.closest(".ms-wrap")) {
+    document.querySelectorAll(".ms-wrap.open").forEach(el => el.classList.remove("open"));
+  }
+});
+
+// ─── RENDER FILTERS ───────────────────────────────────────────────
+function renderFilters() {
+  const panel = document.getElementById("panel-filters");
+  panel.innerHTML = `
+    <!-- LB/K TYPE TOGGLE -->
+    <div class="side-section">
+      <div class="type-toggle">
+        <div class="type-btn ${!selectedProductType ? 'on' : ''}" style="${!selectedProductType ? 'background:var(--accent);color:#fff' : ''}" onclick="setProductType(null)">Todos</div>
+        <div class="type-btn ${selectedProductType==='lb' ? 'on' : ''}" style="${selectedProductType==='lb' ? 'background:var(--blue);color:#fff' : ''}" onclick="setProductType('lb')">LB Productos</div>
+        <div class="type-btn ${selectedProductType==='k' ? 'on' : ''}" style="${selectedProductType==='k' ? 'background:var(--orange);color:#fff' : ''}" onclick="setProductType('k')">K Referencias</div>
+      </div>
+    </div>
+
+    <!-- CATEGORY TREE -->
+    <div class="side-section" id="sec-cats">
+      <div class="side-section-title" onclick="toggleSection('sec-cats')">Categorias</div>
+      <div class="ss-body">
+        <div class="cat-tree">
+          <div class="cat-item">
+            <button class="cat-btn ${!selectedCategory ? 'on' : ''}" onclick="selectCategory(null)">
+              <span class="cat-icon">&#128230;</span>
+              <span>Todas las categorias</span>
+              <span class="cat-count">${categories.reduce((s,c) => s+c.count, 0).toLocaleString()}</span>
+            </button>
+          </div>
+          ${categories.map(cat => `
+            <div class="cat-item">
+              <button class="cat-btn ${selectedCategory === cat.id ? 'on' : ''}" onclick="selectCategory('${esc(cat.id)}')">
+                <span class="cat-icon">${cat.icon}</span>
+                <span>${esc(cat.name)}</span>
+                <span class="cat-count">${cat.count.toLocaleString()}</span>
+              </button>
+              ${selectedCategory === cat.id && cat.subcategories?.length ? `
+                <div class="subcat-list">
+                  <button class="subcat-btn ${!selectedSubcategory ? 'on' : ''}" onclick="event.stopPropagation();selectSubcategory(null)">
+                    <span>Todas</span><span class="subcat-count">${cat.count}</span>
+                  </button>
+                  ${cat.subcategories.map(sc => `
+                    <button class="subcat-btn ${selectedSubcategory === sc.id ? 'on' : ''}" onclick="event.stopPropagation();selectSubcategory('${esc(sc.id)}')">
+                      <span>${esc(sc.name)}</span><span class="subcat-count">${sc.count}</span>
+                    </button>
+                  `).join("")}
+                </div>
+              ` : ''}
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    </div>
+
+    <!-- TAG FILTERS (searchable multi-select dropdowns) -->
+    <div class="side-section" id="sec-tags">
+      <div class="side-section-title" onclick="toggleSection('sec-tags')">Etiquetas</div>
+      <div class="ss-body">
+        <div class="fg">
+          <label class="fl">Sabor</label>
+          ${tagMultiSelect("tag_flavor", tagData.flavor)}
+        </div>
+      </div>
+    </div>
+
+    <!-- MACRONUTRIENTS -->
+    <div class="side-section collapsed" id="sec-macro">
+      <div class="side-section-title" onclick="toggleSection('sec-macro')">Macronutrientes</div>
+      <div class="ss-body">
+        ${rangeRow("grasas", "Grasas", "g")}
+        ${rangeRow("grasas_sat", "Grasas Sat.", "g")}
+        ${rangeRow("hidratos", "Hidratos C.", "g")}
+        ${rangeRow("azucares", "Azucares", "g")}
+        ${rangeRow("proteina", "Proteinas", "g")}
+        ${rangeRow("fibra", "Fibra", "g")}
+        ${rangeRow("sal", "Sal", "g")}
+      </div>
+    </div>
+
+    <!-- CERTIFICATIONS -->
+    <div class="side-section collapsed" id="sec-cert">
+      <div class="side-section-title" onclick="toggleSection('sec-cert')">Certificaciones</div>
+      <div class="ss-body">
+        <div class="check-row"><input type="checkbox" id="f-vegano"><label for="f-vegano">Vegano</label></div>
+        <div class="check-row"><input type="checkbox" id="f-halal"><label for="f-halal">Halal</label></div>
+        <div class="check-row"><input type="checkbox" id="f-kosher"><label for="f-kosher">Kosher</label></div>
+      </div>
+    </div>
+
+    <!-- ALLERGENS -->
+    <div class="side-section collapsed" id="sec-alerg">
+      <div class="side-section-title" onclick="toggleSection('sec-alerg')">&#9888;&#65039; Alergenos (excluir)</div>
+      <div class="ss-body">
+        ${multiSelect("alergenos", allergenOptions.map(a => {
+          const aEmojis = {1:'&#127838;',2:'&#129424;',3:'&#129370;',4:'&#128031;',5:'&#129372;',6:'&#127811;',7:'&#129371;',8:'&#127812;',9:'&#129385;',10:'&#127868;',11:'&#127808;',12:'&#129527;',13:'&#127804;',14:'&#129425;'};
+          const em = aEmojis[a.codigo] || '&#9888;&#65039;';
+          return {id: String(a.codigo), label: em + ' ' + esc(a.nombre), html: true};
+        }), true)}
+        <label style="display:flex;align-items:center;gap:6px;margin-top:7px;font-size:10px;color:var(--text2);cursor:pointer;">
+          <input type="checkbox" id="chk-trazas" ${excluirTrazas ? 'checked' : ''}
+            onchange="excluirTrazas=this.checked;currentOffset=0;doSearch();"
+            style="accent-color:var(--accent);cursor:pointer;">
+          También excluir trazas
+        </label>
+      </div>
+    </div>
+  `;
+}
+
+// ─── FILTER ACTIONS ───────────────────────────────────────────────
+async function setProductType(type) {
+  selectedProductType = type;
+  selectedCategory = null;
+  selectedSubcategory = null;
+  for (const k in msState) delete msState[k];
+  currentOffset = 0;
+  // Reload category counts filtered to the selected type
+  const qs = type ? `?product_type=${type}` : '';
+  try {
+    const res = await fetch(`${API}/api/categories${qs}`).then(r => r.json());
+    categories = res.categories || [];
+  } catch(e) { /* keep existing categories on error */ }
+  renderFilters();
+  doSearch();
+}
+
+function selectCategory(catId) {
+  selectedCategory = catId;
+  selectedSubcategory = null;
+  currentOffset = 0;
+  renderFilters();
+  doSearch();
+}
+
+function selectSubcategory(scId) {
+  selectedSubcategory = scId;
+  currentOffset = 0;
+  renderFilters();
+  doSearch();
+}
+
+function clearAllFilters() {
+  selectedCategory = null;
+  selectedSubcategory = null;
+  selectedProductType = null;
+  for (const k in msState) delete msState[k];
+  document.getElementById("search-input").value = "";
+  currentOffset = 0;
+  renderFilters();
+  doSearch();
+}
+
+function toggleSection(id) {
+  document.getElementById(id).classList.toggle("collapsed");
+}
+
+// ─── FILTER HELPERS ───────────────────────────────────────────────
+function rangeRow(id, label, unit) {
+  return `<div class="range-row">
+    <span class="range-label">${label}</span>
+    <input class="range-input" id="f-${id.replace(/_/g,'-')}-min" type="number" step="0.1" placeholder="Min">
+    <span class="range-sep">—</span>
+    <input class="range-input" id="f-${id.replace(/_/g,'-')}-max" type="number" step="0.1" placeholder="Max">
+    <span style="font-size:9px;color:var(--text3)">${unit}</span>
+  </div>`;
+}
+
+// Tag multi-select — generates a searchable dropdown from tag items that have {value, label, count}
+function tagMultiSelect(id, items) {
+  const options = items.map(it => ({id: it.value, label: `${it.label || it.value} (${it.count})`}));
+  return multiSelect(id, options, false);
+}
+
+function multiSelect(id, options, isAllergen) {
+  return `<div class="ms-wrap" id="ms-${id}">
+    <input class="ms-input" placeholder="Buscar..." onfocus="openMS('${id}')" oninput="filterMS('${id}',this.value)">
+    <span class="ms-arrow">&#9660;</span>
+    <div class="ms-list">
+      ${options.map(o => `
+        <div class="ms-opt" data-id="${esc(o.id)}" onclick="toggleMSOpt('${id}','${esc(o.id)}')">
+          <span class="ms-check">&#10003;</span>
+          <span>${o.html ? o.label : esc(o.label)}</span>
+        </div>
+      `).join("")}
+    </div>
+    <div class="ms-tags" id="ms-tags-${id}"></div>
+  </div>`;
+}
+
+const msState = {};
+function openMS(id) {
+  document.querySelectorAll('.ms-wrap.open').forEach(el => { if(el.id !== 'ms-'+id) el.classList.remove('open'); });
+  document.getElementById('ms-'+id).classList.toggle('open');
+}
+function filterMS(id, query) {
+  const q = query.toLowerCase();
+  document.querySelectorAll(`#ms-${id} .ms-opt`).forEach(el => {
+    el.style.display = el.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+function toggleMSOpt(id, val) {
+  if (!msState[id]) msState[id] = [];
+  const idx = msState[id].indexOf(val);
+  if (idx > -1) msState[id].splice(idx, 1);
+  else msState[id].push(val);
+  renderMSTags(id);
+  document.querySelectorAll(`#ms-${id} .ms-opt`).forEach(el => {
+    el.classList.toggle('sel', msState[id].includes(el.dataset.id));
+  });
+}
+function removeMSTag(id, val) {
+  if (!msState[id]) return;
+  const idx = msState[id].indexOf(val);
+  if (idx > -1) msState[id].splice(idx, 1);
+  renderMSTags(id);
+  document.querySelectorAll(`#ms-${id} .ms-opt`).forEach(el => {
+    el.classList.toggle('sel', msState[id].includes(el.dataset.id));
+  });
+}
+function renderMSTags(id) {
+  const container = document.getElementById(`ms-tags-${id}`);
+  if (!container) return;
+  const isAl = id === 'alergenos';
+  container.innerHTML = (msState[id] || []).map(v => {
+    let label = v;
+    if (isAl) { const a = allergenOptions.find(a => String(a.codigo) === v); if (a) label = a.nombre; }
+    else if (id === 'tag_flavor') { const t = tagData.flavor.find(t => t.value === v); if (t) label = t.label || v; }
+    else if (id === 'tag_protein') { const t = tagData.protein_source.find(t => t.value === v); if (t) label = t.label || v; }
+    else if (id === 'tag_coating') { const t = tagData.coating.find(t => t.value === v); if (t) label = t.label || v; }
+    return `<span class="ms-tag ${isAl ? 'ms-tag-al' : ''}">${esc(label)}<span class="ms-tag-x" onclick="event.stopPropagation();removeMSTag('${id}','${esc(v)}')">&#10005;</span></span>`;
+  }).join("");
+}
+
+// ─── SEARCH ───────────────────────────────────────────────────────
+async function doSearch() {
+  const cnt = document.getElementById("content-area");
+  const t0 = performance.now();
+  cnt.innerHTML = `<div class="loading"><div class="spinner"></div><div class="loading-text">Buscando productos...</div><div class="loading-sub" id="search-timer"></div></div>`;
+  const timerInterval = setInterval(() => {
+    const el = document.getElementById("search-timer");
+    if (el) el.textContent = `${((performance.now() - t0) / 1000).toFixed(1)}s`;
+  }, 200);
+
+  const params = new URLSearchParams();
+  params.set("limit", PAGE_SIZE);
+  params.set("offset", currentOffset);
+
+  const q = document.getElementById("search-input")?.value?.trim();
+  if (q) params.set("q", q);
+
+  if (selectedCategory) params.set("category", selectedCategory);
+  if (selectedSubcategory) params.set("subcategory", selectedSubcategory);
+  if (selectedProductType) params.set("product_type", selectedProductType);
+
+  // Tag filters from multi-select dropdowns
+  const tagFlavor = msState.tag_flavor?.length ? msState.tag_flavor[0] : null;
+  const tagProtein = msState.tag_protein?.length ? msState.tag_protein[0] : null;
+  const tagCoating = msState.tag_coating?.length ? msState.tag_coating[0] : null;
+  if (tagFlavor) params.set("tag_flavor", tagFlavor);
+  if (tagProtein) params.set("tag_protein", tagProtein);
+  if (tagCoating) params.set("tag_coating", tagCoating);
+
+  // Sort
+  if (q && sortField === "CodigoArticulo") {
+    params.set("order_by", "relevance");
+  } else {
+    params.set("order_by", sortField);
+    params.set("order_dir", sortDir);
+  }
+
+  // Range filters
+  const ranges = ["grasas","grasas_sat","hidratos","azucares","proteina","fibra","sal"];
+  ranges.forEach(key => {
+    const dk = key.replace(/_/g, "-");
+    const mn = document.getElementById(`f-${dk}-min`)?.value;
+    const mx = document.getElementById(`f-${dk}-max`)?.value;
+    if (mn) params.set(`${key}_min`, mn);
+    if (mx) params.set(`${key}_max`, mx);
+  });
+
+  // Booleans
+  if (document.getElementById("f-vegano")?.checked) params.set("vegano", "1");
+  if (document.getElementById("f-halal")?.checked) params.set("halal", "1");
+  if (document.getElementById("f-kosher")?.checked) params.set("kosher", "1");
+
+  // Multi-selects
+  if (msState.vitaminas?.length) params.set("vitaminas", msState.vitaminas.join(","));
+  if (msState.minerales?.length) params.set("minerales", msState.minerales.join(","));
+  if (msState.alergenos?.length) {
+    params.set("excluir_alergenos", msState.alergenos.join(","));
+    if (excluirTrazas) params.set("excluir_trazas", "true");
+  }
+
+  try {
+    const res = await fetch(`${API}/api/products?${params}`);
+    currentResults = await res.json();
+    clearInterval(timerInterval);
+    currentResults._searchMs = Math.round(performance.now() - t0);
+    currentResults._query = q;
+    if (currentResults.error) throw new Error(currentResults.error);
+    renderResults();
+  } catch (e) {
+    clearInterval(timerInterval);
+    cnt.innerHTML = `<div class="empty"><div class="empty-icon">&#9888;&#65039;</div><div class="empty-title">Error</div><div class="empty-desc">${esc(e.message)}</div></div>`;
+  }
+}
+
+// ─── SORT & FILTER ────────────────────────────────────────────────
+function getSortedFiltered(productos) {
+  let list = [...productos];
+  if (resultFilter) {
+    const q = resultFilter.toLowerCase();
+    list = list.filter(p =>
+      (p.DescripcionArticulo || '').toLowerCase().includes(q) ||
+      (p.CodigoArticulo || '').toLowerCase().includes(q)
+    );
+  }
+  return list;
+}
+
+function onSortChange(field) { sortField = field; currentOffset = 0; doSearch(); }
+function toggleSortDir() { sortDir = sortDir === "asc" ? "desc" : "asc"; currentOffset = 0; doSearch(); }
+function onResultFilter(val) { resultFilter = val; renderResults(); }
+
+// ─── RENDER RESULTS ───────────────────────────────────────────────
+function renderResults() {
+  const cnt = document.getElementById("content-area");
+  const r = currentResults;
+  if (!r || !r.productos) return;
+
+  if (r.no_filters) {
+    cnt.innerHTML = `<div class="empty">
+      <div class="empty-icon">&#127989;&#65039;</div>
+      <div class="empty-title">Aplica filtros para ver resultados</div>
+      <div class="empty-desc">Selecciona una categoría, introduce un texto de búsqueda o ajusta los filtros de la barra lateral para explorar el catálogo.</div>
+    </div>`;
+    return;
+  }
+
+  if (r.productos.length === 0 && r.total === 0) {
+    cnt.innerHTML = `<div class="empty">
+      <div class="empty-icon">&#128270;</div>
+      <div class="empty-title">Sin resultados</div>
+      <div class="empty-desc">No se encontraron productos con los filtros seleccionados. Prueba a ampliar la busqueda o quitar filtros.</div>
+    </div>`;
+    return;
+  }
+
+  const displayed = getSortedFiltered(r.productos);
+  const pageStart = r.offset + 1;
+  const pageEnd = Math.min(r.offset + r.productos.length, r.total);
+  const searchTime = r._searchMs ? `${(r._searchMs / 1000).toFixed(1)}s` : '';
+  const query = r._query || '';
+
+  const activeFilters = getActiveFilters();
+
+  let html = `
+    <div class="res-header">
+      <div>
+        <div class="res-count">${r.total.toLocaleString()} productos</div>
+        <div class="res-sub">Mostrando ${pageStart}–${pageEnd}${resultFilter ? ` (${displayed.length} visibles)` : ''}${searchTime ? ` &middot; ${searchTime}` : ''}</div>
+      </div>
+    </div>
+    ${activeFilters.length ? `<div class="active-filters">${activeFilters.map(f => `<span class="af-chip">${esc(f)}</span>`).join('')}<span class="af-clear" onclick="clearAllFilters()">Limpiar filtros</span></div>` : ''}
+    <div class="res-toolbar">
+      <label>Ordenar:</label>
+      <select class="sort-select" onchange="onSortChange(this.value)">
+        <option value="CodigoArticulo" ${sortField==='CodigoArticulo'?'selected':''}>Codigo</option>
+        <option value="DescripcionArticulo" ${sortField==='DescripcionArticulo'?'selected':''}>Nombre</option>
+        <option value="MRH_Proteina" ${sortField==='MRH_Proteina'?'selected':''}>Proteina</option>
+        <option value="MRH_Grasas" ${sortField==='MRH_Grasas'?'selected':''}>Grasas</option>
+        <option value="MRH_HidratosCarbono" ${sortField==='MRH_HidratosCarbono'?'selected':''}>Carbohidratos</option>
+        <option value="MRH_Fibra" ${sortField==='MRH_Fibra'?'selected':''}>Fibra</option>
+        <option value="MRH_Azucares" ${sortField==='MRH_Azucares'?'selected':''}>Azucares</option>
+        <option value="MRH_Sodio" ${sortField==='MRH_Sodio'?'selected':''}>Sal</option>
+        <option value="MRH_PesoOptimo" ${sortField==='MRH_PesoOptimo'?'selected':''}>Peso</option>
+      </select>
+      <button class="sort-dir" onclick="toggleSortDir()">${sortDir === 'asc' ? '&#8593; Asc' : '&#8595; Desc'}</button>
+      <div style="flex:1"></div>
+      <label>Filtrar:</label>
+      <input class="res-filter" placeholder="Filtrar resultados..." value="${esc(resultFilter)}" oninput="onResultFilter(this.value)">
+    </div>
+    <div class="res-grid">
+  `;
+
+  // Pagination helper
+  function paginationHtml() {
+    if (r.total <= PAGE_SIZE) return '';
+    const curPage = Math.floor(r.offset / PAGE_SIZE) + 1;
+    const totalPages = Math.ceil(r.total / PAGE_SIZE);
+    const prevDis = r.offset <= 0 ? 'disabled' : '';
+    const nextDis = r.offset + PAGE_SIZE >= r.total ? 'disabled' : '';
+    let pages = '';
+    const range = 2;
+    for (let i = 1; i <= totalPages; i++) {
+      if (i === 1 || i === totalPages || (i >= curPage - range && i <= curPage + range)) {
+        pages += `<button class="page-num${i === curPage ? ' pn-cur' : ''}" onclick="goToPage(${i})">${i}</button>`;
+      } else if (i === curPage - range - 1 || i === curPage + range + 1) {
+        pages += `<span class="page-dots">...</span>`;
+      }
+    }
+    return `<div class="pagination">
+      <button class="page-btn" ${prevDis} onclick="changePage(-1)">&#9664; Anterior</button>
+      ${pages}
+      <button class="page-btn" ${nextDis} onclick="changePage(1)">Siguiente &#9654;</button>
+    </div>`;
+  }
+
+  html += paginationHtml();
+  html += `<div class="res-grid-inner">`;
+
+  // Spanish label maps
+  const flavorLabels = {};
+  tagData.flavor.forEach(t => { flavorLabels[t.value] = t.label || t.value; });
+  const proteinLabels = {};
+  tagData.protein_source.forEach(t => { proteinLabels[t.value] = t.label || t.value; });
+  const coatingLabels = {};
+  tagData.coating.forEach(t => { coatingLabels[t.value] = t.label || t.value; });
+
+  displayed.forEach(p => {
+    const isK = p._is_k;
+    const cat = p._category || 'Otros';
+    const subcat = p._subcategory || '';
+    const tags = p._tags || {};
+    const catInfo = categories.find(c => c.name === cat) || {};
+
+    let name = esc(p.DescripcionArticulo || '—');
+    if (query) name = highlightText(name, query);
+
+    let tagChips = [];
+    const flavorsArr = tags.flavors || (tags.flavor ? [tags.flavor] : []);
+    flavorsArr.forEach(fl => tagChips.push({t: flavorLabels[fl] || fl, bg: "#fef3c7", c: "#92400e"}));
+    if (tags.protein_source) tagChips.push({t: proteinLabels[tags.protein_source] || tags.protein_source, bg: "var(--purple-bg)", c: "var(--purple)"});
+    if (tags.coating) tagChips.push({t: coatingLabels[tags.coating] || tags.coating, bg: "var(--blue-bg)", c: "var(--blue)"});
+    if (tags.brand) tagChips.push({t: tags.brand, bg: "var(--bg3)", c: "var(--text2)"});
+    if (p.VVegano === -1 || p.VVegano === 1) tagChips.push({t:"Vegano",bg:"var(--green-bg)",c:"var(--green)"});
+
+    const grasas = fmtN(p.MRH_Grasas);
+    const prot = fmtN(p.MRH_Proteina);
+    const carbs = fmtN(p.MRH_HidratosCarbono);
+    const fibra = fmtN(p.MRH_Fibra);
+    const hasNutrition = p.MRH_Proteina > 0 || p.MRH_Grasas > 0 || p.MRH_HidratosCarbono > 0;
+
+    const macroHtml = hasNutrition ?
+      `<div class="pc-macros">` +
+      `<span class="pc-macro" title="Grasas">&#129361;${grasas}</span>` +
+      `<span class="pc-macro" title="Proteina">&#129385;${prot}</span>` +
+      `<span class="pc-macro" title="Carbos">&#127806;${carbs}</span>` +
+      `<span class="pc-macro" title="Fibra">&#129388;${fibra}</span>` +
+      `</div>` : '';
+
+    const tagHtml = tagChips.length ? tagChips.map(t => `<span class="pc-tag" style="background:${t.bg};color:${t.c}">${esc(t.t)}</span>`).join("") : '';
+
+    const safeId = p.CodigoArticulo.replace(/[^a-zA-Z0-9]/g, '_');
+    html += `
+      <div class="pcard" onclick="showDetail('${esc(p.CodigoArticulo)}')">
+        <div class="pc-r1">
+          <button class="pcard-toggle" id="ptog-${safeId}" title="Ver escandallo" onclick="event.stopPropagation();toggleCardEsc('${esc(p.CodigoArticulo)}','${safeId}','${esc(cat)}','${esc(p.DescripcionArticulo||'')}')">&#9654;</button>
+          <span class="pc-prefix-badge ${isK ? 'pc-prefix-k' : 'pc-prefix-lb'}">${isK ? 'K' : 'LB'}</span>
+          <div class="pc-name"><span class="pc-code-inline">(${esc(p.CodigoArticulo)})</span>${name}</div>
+          ${macroHtml}
+        </div>
+        <div class="pc-r2">
+          <span class="pc-cod">${esc(p.CodigoArticulo)}</span>
+          <span class="pc-sep">&#183;</span>
+          <span class="pc-cat">${catInfo.icon || ''} ${esc(cat)}${subcat ? ' &#8250; ' + esc(subcat) : ''}</span>
+          ${tagHtml ? `<div class="pc-tags">${tagHtml}</div>` : ''}
+          ${p._relevance ? `<span class="pc-rel">&#11088;${p._relevance}</span>` : ''}
+        </div>
+        <div id="esci-${safeId}" class="esc-inline" style="display:none"></div>
+      </div>`;
+  });
+
+  html += `</div></div>`;
+  html += paginationHtml();
+
+  cnt.innerHTML = html;
+  cnt.scrollTop = 0;
+}
+
+function changePage(dir) {
+  currentOffset += dir * PAGE_SIZE;
+  if (currentOffset < 0) currentOffset = 0;
+  doSearch();
+}
+function goToPage(page) {
+  currentOffset = (page - 1) * PAGE_SIZE;
+  doSearch();
+}
+
+function getActiveFilters() {
+  const chips = [];
+  const q = document.getElementById("search-input")?.value?.trim();
+  if (q) chips.push(`"${q}"`);
+  if (selectedProductType === 'lb') chips.push('Solo LB');
+  if (selectedProductType === 'k') chips.push('Solo K');
+  if (selectedCategory) {
+    const cat = categories.find(c => c.id === selectedCategory);
+    chips.push(cat ? cat.name : selectedCategory);
+  }
+  if (selectedSubcategory) chips.push(selectedSubcategory);
+  if (msState.tag_flavor?.length) chips.push(`Sabor: ${msState.tag_flavor.join(', ')}`);
+
+  const ranges = ["grasas","grasas_sat","hidratos","azucares","proteina","fibra","sal"];
+  const labels = {grasas:"Grasas",grasas_sat:"Grasas Sat.",hidratos:"Carbos",azucares:"Azucares",proteina:"Proteina",fibra:"Fibra",sal:"Sal"};
+  ranges.forEach(key => {
+    const dk = key.replace(/_/g,"-");
+    const mn = document.getElementById(`f-${dk}-min`)?.value;
+    const mx = document.getElementById(`f-${dk}-max`)?.value;
+    if (mn || mx) chips.push(`${labels[key]}: ${mn||'0'}–${mx||'max'}`);
+  });
+
+  if (document.getElementById("f-vegano")?.checked) chips.push("Vegano");
+  if (document.getElementById("f-halal")?.checked) chips.push("Halal");
+  if (document.getElementById("f-kosher")?.checked) chips.push("Kosher");
+  if (msState.vitaminas?.length) chips.push(`Vit: ${msState.vitaminas.length}`);
+  if (msState.minerales?.length) chips.push(`Min: ${msState.minerales.length}`);
+  if (msState.alergenos?.length) chips.push(`Excl. alerg: ${msState.alergenos.length}`);
+
+  return chips;
+}
+
+// ─── PRODUCT DETAIL MODAL ─────────────────────────────────────────
+async function showDetail(cod) {
+  const modal = document.getElementById("modal");
+  const body = document.getElementById("modal-body");
+  modal.style.display = "flex";
+  body.innerHTML = `<div class="loading"><div class="spinner"></div><div class="loading-text">Cargando detalle...</div></div>`;
+
+  // Spanish label maps
+  const flavorLabels = {};
+  tagData.flavor.forEach(t => { flavorLabels[t.value] = t.label || t.value; });
+  const proteinLabels = {};
+  tagData.protein_source.forEach(t => { proteinLabels[t.value] = t.label || t.value; });
+  const coatingLabels = {};
+  tagData.coating.forEach(t => { coatingLabels[t.value] = t.label || t.value; });
+
+  try {
+    const p = await fetch(`${API}/api/product/${encodeURIComponent(cod)}/detail`).then(r => r.json());
+    if (p.error) throw new Error(p.error);
+
+    const isK = p._is_k;
+    const cat = p._category || 'Otros';
+    const subcat = p._subcategory || '';
+    const tags = p._tags || {};
+    const catInfo = categories.find(c => c.name === cat) || {};
+
+    let html = `<span class="modal-close" onclick="closeModal()">&#10005;</span>`;
+
+    // Header
+    html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+      <span class="pc-prefix-badge ${isK ? 'pc-prefix-k' : 'pc-prefix-lb'}" style="font-size:10px;padding:2px 7px;">${isK ? 'K' : 'LB'}</span>
+      <h2 style="font-size:15px;font-weight:800;">${esc(p.DescripcionArticulo || '—')}</h2>
+    </div>`;
+    html += `<div style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-bottom:4px;">${esc(p.CodigoArticulo)} &middot; ${esc(p.MRH_TipoProducto || '—')}</div>`;
+    html += `<div style="font-size:10px;color:var(--text2);margin-bottom:12px;">${catInfo.icon || ''} ${esc(cat)}${subcat ? ' &#8250; ' + esc(subcat) : ''} &middot; Confianza: ${Math.round((p._confidence || 0) * 100)}%</div>`;
+
+    // Tags
+    const tagList = [];
+    const detailFlavors = tags.flavors || (tags.flavor ? [tags.flavor] : []);
+    if (detailFlavors.length > 0) tagList.push({l:"Sabor", v: detailFlavors.map(fl => flavorLabels[fl] || fl).join(' + '), bg:"#fef3c7", c:"#92400e"});
+    if (tags.protein_source) tagList.push({l:"Proteina", v: proteinLabels[tags.protein_source] || tags.protein_source, bg:"var(--purple-bg)", c:"var(--purple)"});
+    if (tags.coating) tagList.push({l:"Cobertura", v: coatingLabels[tags.coating] || tags.coating, bg:"var(--blue-bg)", c:"var(--blue)"});
+    if (tags.brand) tagList.push({l:"Marca", v:tags.brand, bg:"var(--bg3)", c:"var(--text2)"});
+    if (tags.weight_text) tagList.push({l:"Peso", v:tags.weight_text, bg:"var(--bg3)", c:"var(--text2)"});
+
+    if (tagList.length) {
+      html += `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;">
+        ${tagList.map(t => `<span class="pc-tag" style="background:${t.bg};color:${t.c};font-size:10px;padding:2px 8px;">${esc(t.l)}: <b>${esc(t.v)}</b></span>`).join("")}
+      </div>`;
+    }
+
+    // Macronutrients with emojis
+    html += `<div class="section-box">
+      <div class="section-title">&#127869; Macronutrientes</div>
+      <div class="detail-grid">
+        <div class="detail-item"><span class="detail-emoji">&#129361;</span><div><div class="detail-label">Grasas</div><div class="detail-value">${fmtN(p.MRH_Grasas)} g</div></div></div>
+        <div class="detail-item"><span class="detail-emoji">&#129474;</span><div><div class="detail-label">Grasas Saturadas</div><div class="detail-value">${fmtN(p.MRH_GrasasSaturadas)} g</div></div></div>
+        <div class="detail-item"><span class="detail-emoji">&#127806;</span><div><div class="detail-label">Carbohidratos</div><div class="detail-value">${fmtN(p.MRH_HidratosCarbono)} g</div></div></div>
+        <div class="detail-item"><span class="detail-emoji">&#127852;</span><div><div class="detail-label">Azucares</div><div class="detail-value">${fmtN(p.MRH_Azucares)} g</div></div></div>
+        <div class="detail-item"><span class="detail-emoji">&#129385;</span><div><div class="detail-label">Proteinas</div><div class="detail-value">${fmtN(p.MRH_Proteina)} g</div></div></div>
+        <div class="detail-item"><span class="detail-emoji">&#129388;</span><div><div class="detail-label">Fibra</div><div class="detail-value">${fmtN(p.MRH_Fibra)} g</div></div></div>
+        <div class="detail-item"><span class="detail-emoji">&#129474;</span><div><div class="detail-label">Sal</div><div class="detail-value">${fmtN(p.MRH_Sodio)} g</div></div></div>
+      </div>
+    </div>`;
+
+    // Physical properties
+    html += `<div class="section-box">
+      <div class="section-title">&#9878;&#65039; Propiedades</div>
+      <div class="detail-grid">
+        <div class="detail-item"><span class="detail-emoji">&#128167;</span><div><div class="detail-label">pH</div><div class="detail-value">${fmtN(p.MRH_PHDesde)} — ${fmtN(p.MRH_PHHasta)}</div></div></div>
+        <div class="detail-item"><span class="detail-emoji">&#128167;</span><div><div class="detail-label">Aw</div><div class="detail-value">${p.MRH_AW || '—'}</div></div></div>
+        <div class="detail-item"><span class="detail-emoji">&#9878;&#65039;</span><div><div class="detail-label">Peso Optimo</div><div class="detail-value">${fmtN(p.MRH_PesoOptimo)} g</div></div></div>
+        <div class="detail-item"><span class="detail-emoji">&#128207;</span><div><div class="detail-label">Peso Min/Max</div><div class="detail-value">${fmtN(p.MRH_PesoMin)} / ${fmtN(p.MRH_PesoMax)} g</div></div></div>
+        ${p.MRH_Color ? `<div class="detail-item"><span class="detail-emoji">&#127912;</span><div><div class="detail-label">Color</div><div class="detail-value">${esc(p.MRH_Color)}</div></div></div>` : ''}
+        ${p.MRH_Humedad != null ? `<div class="detail-item"><span class="detail-emoji">&#128167;</span><div><div class="detail-label">Humedad</div><div class="detail-value">${fmtN(p.MRH_Humedad)}</div></div></div>` : ''}
+      </div>
+    </div>`;
+
+    // Certifications
+    let certs = [];
+    if (p.VVegano === -1 || p.VVegano === 1) certs.push({t:"Vegano", e:"&#127793;"});
+    if (p.MRH_HALAL === -1 || p.MRH_HALAL === 1) certs.push({t:"Halal", e:"&#9851;&#65039;"});
+    if (p.kosher === -1 || p.kosher === 1) certs.push({t:"Kosher", e:"&#10004;&#65039;"});
+    if (p.VBano === -1 || p.VBano === 1) certs.push({t:"Bano de chocolate", e:"&#127851;"});
+    if (p.MRH_LenguaCaramelo === -1 || p.MRH_LenguaCaramelo === 1) certs.push({t:"Lengua de caramelo", e:"&#127852;"});
+    if (p.VHorneado === -1 || p.VHorneado === 1) certs.push({t:"Horneada", e:"&#127858;"});
+    if (p.VGlutenFree === -1 || p.VGlutenFree === 1) certs.push({t:"Sin Gluten", e:"&#127806;"});
+    if (p.VSugarFree === -1 || p.VSugarFree === 1) certs.push({t:"Sin Azucar", e:"&#128683;"});
+    if (p.VEcologico === -1 || p.VEcologico === 1) certs.push({t:"Ecologico", e:"&#127807;"});
+    if (certs.length) {
+      html += `<div class="section-box"><div class="section-title">&#127942; Certificaciones</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;">
+          ${certs.map(c => `<span class="pc-tag" style="background:var(--green-bg);color:var(--green);font-size:10px;padding:3px 8px;">${c.e} ${c.t}</span>`).join("")}
+        </div>
+      </div>`;
+    }
+
+    // Vitamins
+    if (p.vitaminas?.length) {
+      html += `<div class="section-box"><div class="section-title">&#128138; Vitaminas</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;">
+          ${p.vitaminas.map(v => `<div style="font-size:11px;padding:2px 0;"><b>${esc(v.DescripcionCompuesto)}</b>: ${fmtN(v.PorcentajeCompuesto)}${v.VRN > 0 ? ` <span style="color:var(--text3);font-size:9px">(VRN: ${fmtN(v.VRN)})</span>` : ''}</div>`).join("")}
+        </div>
+      </div>`;
+    }
+
+    // Minerals
+    if (p.minerales?.length) {
+      html += `<div class="section-box"><div class="section-title">&#9883;&#65039; Minerales</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;">
+          ${p.minerales.map(v => `<div style="font-size:11px;padding:2px 0;"><b>${esc(v.DescripcionCompuesto)}</b>: ${fmtN(v.PorcentajeCompuesto)}${v.VRN > 0 ? ` <span style="color:var(--text3);font-size:9px">(VRN: ${fmtN(v.VRN)})</span>` : ''}</div>`).join("")}
+        </div>
+      </div>`;
+    }
+
+    // Allergens
+    if (p.alergenos?.length) {
+      const allergenEmojis = {
+        1:'&#127838;', 2:'&#129424;', 3:'&#129370;', 4:'&#128031;',
+        5:'&#129372;', 6:'&#127811;', 7:'&#129371;', 8:'&#127812;',
+        9:'&#129385;', 10:'&#127868;', 11:'&#127808;', 12:'&#129527;',
+        13:'&#127804;', 14:'&#129425;'
+      };
+      const contiene = p.alergenos.filter(a => a.propiedad === -1);
+      const trazas = p.alergenos.filter(a => a.propiedad === 1);
+
+      html += `<div class="section-box"><div class="section-title">&#9888;&#65039; Alergenos</div>`;
+
+      if (contiene.length) {
+        html += `<div class="al-group al-contiene">
+          <div class="al-group-hdr"><span class="al-dot al-dot-r"></span> Contiene</div>
+          <div class="al-items">${contiene.map(a => `<div class="al-item al-item-r"><span class="al-em">${allergenEmojis[a.codigo]||'&#9888;&#65039;'}</span><span class="al-name">${esc(a.nombre)}</span></div>`).join('')}</div>
+        </div>`;
+      }
+      if (trazas.length) {
+        html += `<div class="al-group al-trazas">
+          <div class="al-group-hdr"><span class="al-dot al-dot-y"></span> Posibles trazas</div>
+          <div class="al-items">${trazas.map(a => `<div class="al-item al-item-y"><span class="al-em">${allergenEmojis[a.codigo]||'&#9888;&#65039;'}</span><span class="al-name">${esc(a.nombre)}</span></div>`).join('')}</div>
+        </div>`;
+      }
+      if (false) {
+        html += `<div class="al-group al-libre">
+          <div class="al-group-hdr"><span class="al-dot al-dot-g"></span> No contiene</div>
+          <div class="al-items"></div>
+        </div>`;
+      }
+      html += `</div>`;
+    }
+
+    body.innerHTML = html;
+
+    // Load escandallo asynchronously and append when ready
+    loadEscandallo(cod, body, p);
+
+  } catch (e) {
+    body.innerHTML = `<span class="modal-close" onclick="closeModal()">&#10005;</span><div style="color:var(--red);padding:20px;">${esc(e.message)}</div>`;
+  }
+}
+
+// ─── ESCANDALLO HELPERS ────────────────────────────────────────────
+
+function isUnitProduct(cat, desc) {
+  if (!cat && !desc) return false;
+  const unitCats = ['Capsulas'];
+  if (unitCats.includes(cat)) return true;
+  const d = (desc || '').toLowerCase();
+  return /\bcaps\b|c[aá]psul|comprimid|tableta|pastilla|softgel|gummie/.test(d);
+}
+
+const escCache = new Map();
+
+async function toggleCardEsc(cod, safeId, cat, desc) {
+  const container = document.getElementById(`esci-${safeId}`);
+  const btn = document.getElementById(`ptog-${safeId}`);
+  if (!container) return;
+
+  const isOpen = container.style.display !== 'none';
+  if (isOpen) {
+    container.style.display = 'none';
+    if (btn) { btn.innerHTML = '&#9654;'; btn.classList.remove('open'); }
+    return;
+  }
+  container.style.display = 'block';
+  if (btn) { btn.innerHTML = '&#9660;'; btn.classList.add('open'); }
+
+  if (escCache.has(cod)) {
+    renderEscInline(container, escCache.get(cod), cat, desc, cod, safeId);
+    return;
+  }
+
+  container.innerHTML = `<div class="esc-loading">&#9881;&#65039; Cargando escandallo...</div>`;
+  try {
+    const data = await fetch(`${API}/api/product/${encodeURIComponent(cod)}/escandallo`).then(r => r.json());
+    escCache.set(cod, data);
+    renderEscInline(container, data, cat, desc, cod, safeId);
+  } catch(e) {
+    container.innerHTML = `<div style="font-size:9px;color:var(--red);padding:4px;">Error: ${esc(e.message)}</div>`;
+  }
+}
+
+function renderEscInline(container, data, cat, desc, cod, safeId) {
+  if (data.error || !data.componentes?.length) {
+    container.innerHTML = `<div style="font-size:9px;color:var(--text3);padding:4px;">Sin datos de escandallo</div>`;
+    return;
+  }
+
+  const fmtP = v => v != null ? `${v.toFixed(3)} €` : '—';
+  const fmtPct = v => v != null ? `${v.toFixed(1)}%` : '—';
+  const fmtU = v => v != null ? v.toFixed(3) : '—';
+
+  // Split into Materias Primas / Material Auxiliar
+  const mpList = [...data.componentes].filter(c => c.tipo_componente !== 'material_auxiliar')
+    .sort((a, b) => (b.pct_coste || 0) - (a.pct_coste || 0));
+  const maList = [...data.componentes].filter(c => c.tipo_componente === 'material_auxiliar')
+    .sort((a, b) => (b.pct_coste || 0) - (a.pct_coste || 0));
+
+  const renderInlineRows = (list, maxPct) => list.map(c => {
+    const isTop = c.pct_coste != null && c.pct_coste === maxPct && maxPct > 0;
+    const isInactivo = !!c.inactivo;
+    const bCls = c.precio_fuente === 'reposicion' ? 'esc-badge-escalado' :
+                 c.precio_fuente === 'ultima_compra' ? 'esc-badge-ultima' :
+                 c.precio_fuente === 'cambio_codigo' ? 'esc-badge-cambio' :
+                 c.precio_fuente === 'receta' ? 'esc-badge-receta' : 'esc-badge-pendiente';
+    const bLbl = c.precio_fuente === 'reposicion' ? 'Rep' :
+                 c.precio_fuente === 'ultima_compra' ? 'UC' :
+                 c.precio_fuente === 'cambio_codigo' ? 'CC' :
+                 c.precio_fuente === 'receta' ? 'Rec' : '?';
+    const precioCell = c.precio_efectivo != null
+      ? `${fmtP(c.precio_efectivo)} <span class="${bCls}">${bLbl}</span>`
+      : `<span class="${bCls}">Pendiente de añadir precio</span>`;
+    const pctBar = c.pct_coste != null
+      ? `<span class="esc-pbar${isTop ? ' top' : ''}" style="width:${Math.min(Math.round(c.pct_coste * 0.8), 60)}px"></span>`
+      : '';
+    const udsLabel = c.es_formato_solido
+      ? `${Math.round(c.UnidadesNecesarias).toLocaleString()} <span style="color:var(--text3);font-size:8px">uds</span>`
+      : fmtU(c.UnidadesNecesarias);
+    const rowStyle = isInactivo ? 'opacity:0.35;' : '';
+    return `<tr class="${isTop ? 'esc-top' : ''}" style="${rowStyle}">
+      <td><span style="font-size:8px;color:var(--text3);font-family:var(--mono)">${esc(c.ArticuloComponente)}</span> ${esc(c.DescripcionArticulo || '—')}${isInactivo ? ' <span style="font-size:7px;color:var(--text3)">(inactivo)</span>' : ''}${isTop ? ' <span style="color:var(--orange);font-size:9px">&#9888;</span>' : ''}</td>
+      <td class="r">${udsLabel}</td>
+      <td class="r">${precioCell}</td>
+      <td class="r">${fmtPct(c.pct_coste)}${pctBar}</td>
+    </tr>`;
+  }).join('');
+
+  const inlineSectionHdr = (label, color) =>
+    `<tr><td colspan="4" style="background:${color};color:#fff;font-size:8px;font-weight:700;padding:2px 5px;">${label}</td></tr>`;
+
+  let rows = '';
+  if (mpList.length) {
+    rows += inlineSectionHdr('🌾 MATERIAS PRIMAS', '#7c5c2e');
+    rows += renderInlineRows(mpList, mpList[0]?.pct_coste || 0);
+  }
+  if (maList.length) {
+    rows += inlineSectionHdr('🔧 MATERIAL AUXILIAR', '#374151');
+    rows += renderInlineRows(maList, maList[0]?.pct_coste || 0);
+  }
+
+  const kgAmasijo    = data.kg_amasijo    != null ? Number(data.kg_amasijo)    : null;
+  const costeAmasijo = data.coste_amasijo != null ? Number(data.coste_amasijo) : null;
+  const costeAmasijoBobina = data.coste_amasijo_bobina != null ? Number(data.coste_amasijo_bobina) : null;
+  const numUds       = data.numero_unidades  != null ? Number(data.numero_unidades)  : null;
+  const costeUd      = data.coste_unitario   != null ? Number(data.coste_unitario)   : null;
+  const costeParaMotor = costeAmasijo;
+  const costeInputId = `calc-coste-i${safeId}`;
+  const costeLabel = 'Coste Amasijo (€)';
+  const costeInputHtml = costeParaMotor != null
+    ? `<input type="number" id="${costeInputId}" class="esc-coste-input"
+             step="0.001" min="0.001" value="${costeParaMotor.toFixed(3)}"
+             title="Editar para recalcular precio"
+             onclick="event.stopPropagation()"
+             onchange="event.stopPropagation();calcularPrecio('${cod.replace(/'/g,"\\'")}','i${safeId}')">`
+    : `<span class="val hl">—</span>`;
+
+  const footerHtml = `<div class="esc-inline-footer">
+    <div class="esc-stat"><span class="lbl">Kg / Amasijo</span><span class="val">${kgAmasijo != null ? kgAmasijo.toFixed(3) : '—'}</span></div>
+    <div class="esc-stat"><span class="lbl">${costeLabel}</span>${costeInputHtml}</div>
+    ${costeAmasijoBobina != null
+      ? `<div class="esc-stat"><span class="lbl">Coste Amasijo + Bobina</span><span class="val hl">${costeAmasijoBobina.toFixed(3)} €</span></div>`
+      : ''}
+    ${data.peso_unitario_pieza != null
+      ? `${numUds != null ? `<div class="esc-stat"><span class="lbl">Nº Unidades</span><span class="val">${Math.round(numUds).toLocaleString()}</span></div>` : ''}
+         ${costeUd != null ? `<div class="esc-stat"><span class="lbl">Coste / Ud.</span><span class="val hl">${costeUd.toFixed(3)} €</span></div>` : ''}`
+      : ''}
+  </div>`;
+
+  const pendCount = data.componentes.filter(c => c.precio_fuente === 'pendiente').length;
+  const calcResultHtml = costeParaMotor != null
+    ? `<div id="calc-result-i${safeId}" class="calc-result" style="margin:4px 5px 2px;"></div>`
+    : '';
+
+  container.innerHTML = `
+    <table class="esc-inline-table">
+      <thead><tr>
+        <th>Componente</th>
+        <th class="r">Uds. nec.</th>
+        <th class="r">Precio (€/kg)</th>
+        <th class="r">% Coste</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    ${footerHtml}
+    ${pendCount > 0 ? `<div style="font-size:8px;color:var(--red);margin-top:3px;padding:0 5px;">&#9888; ${pendCount} componente${pendCount>1?'s':''} sin precio escalado</div>` : ''}
+    ${calcResultHtml}`;
+
+  if (costeParaMotor != null && costeParaMotor > 0) {
+    calcularPrecio(cod, 'i' + safeId);
+  }
+}
+
+async function loadEscandallo(cod, body, prod) {
+  const placeholder = document.createElement('div');
+  placeholder.id = 'esc-section';
+  placeholder.innerHTML = `<div class="section-box" style="opacity:0.5"><div class="section-title">&#9881;&#65039; Escandallo — cargando...</div></div>`;
+  body.appendChild(placeholder);
+
+  try {
+    let data;
+    if (escCache.has(cod)) {
+      data = escCache.get(cod);
+    } else {
+      data = await fetch(`${API}/api/product/${encodeURIComponent(cod)}/escandallo`).then(r => r.json());
+      escCache.set(cod, data);
+    }
+    const sec = document.getElementById('esc-section');
+    if (!sec) return;
+
+    if (data.error || !data.componentes || !data.componentes.length) {
+      const msg = (data.error || !data.componentes) ? 'No disponible' : 'Sin componentes';
+      const escDivId = cod.replace(/[^a-zA-Z0-9]/g, '_');
+      sec.innerHTML = `
+        <div class="section-box">
+          <div class="section-title">&#9881;&#65039; Escandallo</div>
+          <div style="font-size:11px;color:var(--text3)">${msg}</div>
+        </div>
+        <div class="calc-precio-box">
+          <div class="section-title">&#128182; Calcular Precio</div>
+          <div class="calc-precio-row">
+            <label for="calc-coste-${escDivId}">Coste amasijo (€):</label>
+            <input id="calc-coste-${escDivId}" type="number" step="0.01" min="0.01"
+                   placeholder="ej: 250.00" />
+            <button id="calc-btn-${escDivId}" class="btn-calc"
+                    onclick="calcularPrecio('${esc(cod)}','${escDivId}')">Calcular</button>
+          </div>
+          <div id="calc-result-${escDivId}" class="calc-result"></div>
+        </div>`;
+      return;
+    }
+
+    const cat = prod?._category || '';
+    const desc = prod?.DescripcionArticulo || '';
+    // Sort by pct_coste DESC — most expensive ingredient first
+    const totalCoste      = data.coste_amasijo || 0;
+    const costeAmasijoBob = data.coste_amasijo_bobina != null ? Number(data.coste_amasijo_bobina) : null;
+    const kgAmasijo       = data.kg_amasijo;
+    const numUds          = data.numero_unidades;
+    const costeUd         = data.coste_unitario;
+    const costeParaMotor  = totalCoste || null;
+
+    const fmtPrecio = v => v != null ? `${v.toFixed(3)} €` : '—';
+    const fmtPct = v => v != null ? `${v.toFixed(1)}%` : '—';
+    const fmtU = v => v != null ? v.toFixed(3) : '—';
+
+    // Split into two groups, each sorted by pct_coste desc
+    const materiasPrimas = [...data.componentes]
+      .filter(c => c.tipo_componente !== 'material_auxiliar')
+      .sort((a, b) => (b.pct_coste || 0) - (a.pct_coste || 0));
+    const materialAuxiliar = [...data.componentes]
+      .filter(c => c.tipo_componente === 'material_auxiliar')
+      .sort((a, b) => (b.pct_coste || 0) - (a.pct_coste || 0));
+
+    const renderRows = (list, maxPct) => list.map(c => {
+      const isTop = c.pct_coste != null && c.pct_coste === maxPct && maxPct > 0;
+      const isInactivo = !!c.inactivo;
+      const badgeClass = c.precio_fuente === 'reposicion' ? 'esc-badge-escalado' :
+                         c.precio_fuente === 'ultima_compra' ? 'esc-badge-ultima' :
+                         c.precio_fuente === 'cambio_codigo' ? 'esc-badge-cambio' :
+                         c.precio_fuente === 'receta' ? 'esc-badge-receta' : 'esc-badge-pendiente';
+      const badgeLabel = c.precio_fuente === 'reposicion' ? 'Reposición' :
+                         c.precio_fuente === 'ultima_compra' ? 'Últ. compra' :
+                         c.precio_fuente === 'cambio_codigo' ? 'Cambio código' :
+                         c.precio_fuente === 'receta' ? 'Receta' : 'Pendiente';
+      const precioLabel = c.precio_fuente === 'pendiente'
+        ? `<span class="${badgeClass}">Pendiente de añadir precio</span>`
+        : `${fmtPrecio(c.precio_efectivo)} <span class="${badgeClass}">${badgeLabel}</span>`;
+      const pctBar = c.pct_coste != null
+        ? `<span class="esc-pct-bar" style="width:${Math.round(c.pct_coste)}px"></span>`
+        : '';
+      const udsCell = c.es_formato_solido
+        ? `${Math.round(c.UnidadesNecesarias).toLocaleString()} <span style="color:var(--text3);font-size:8px">uds</span>`
+        : fmtU(c.UnidadesNecesarias);
+      const rowStyle = isInactivo ? 'opacity:0.35;' : '';
+      return `<tr class="${isTop ? 'esc-row-top' : ''}" style="${rowStyle}">
+        <td><span class="esc-orden">${c.Orden}</span></td>
+        <td><span style="font-size:9px;color:var(--text3);font-family:var(--mono)">(${esc(c.ArticuloComponente)})</span> ${esc(c.DescripcionArticulo || '—')}${isTop ? ' <span style="color:var(--orange)">&#9888;</span>' : ''}${isInactivo ? ' <span style="font-size:7px;color:var(--text3)">(inactivo)</span>' : ''}</td>
+        <td class="num">${udsCell}</td>
+        <td class="num">${precioLabel}</td>
+        <td class="num ${isTop ? 'esc-pct-top' : ''}">${fmtPct(c.pct_coste)}${pctBar}</td>
+        <td class="num">${c.FechaUltimaCompra || '—'}</td>
+      </tr>`;
+    }).join('');
+
+    const maxMP = materiasPrimas[0]?.pct_coste || 0;
+    const maxMA = materialAuxiliar[0]?.pct_coste || 0;
+
+    const sectionHeader = (label, color, count) =>
+      `<tr><td colspan="6" style="background:${color};color:#fff;font-size:9px;font-weight:700;
+        padding:3px 6px;letter-spacing:0.05em;">${label} <span style="opacity:0.7">(${count})</span></td></tr>`;
+
+    let rows = '';
+    if (materiasPrimas.length) {
+      rows += sectionHeader('🌾 MATERIAS PRIMAS', '#7c5c2e', materiasPrimas.length);
+      rows += renderRows(materiasPrimas, maxMP);
+    }
+    if (materialAuxiliar.length) {
+      rows += sectionHeader('🔧 MATERIAL AUXILIAR', '#374151', materialAuxiliar.length);
+      rows += renderRows(materialAuxiliar, maxMA);
+    }
+
+    const comps = data.componentes; // for pendiente count below
+
+    const escDivId = cod.replace(/[^a-zA-Z0-9]/g, '_');
+
+    // Footer: resumen amasijo → unidad
+    const costeFullVal = totalCoste > 0 ? totalCoste : null;
+    const costeLabelFull = 'Coste Amasijo (€)';
+    const footerHtml = `<tr class="esc-total-row">
+      <td colspan="2"></td>
+      ${!esFormato ? `<td class="num" style="font-size:9px;color:var(--text2)">Kg / Amasijo<br><span style="font-size:12px;color:var(--text)">${kgAmasijo != null ? kgAmasijo.toFixed(3) : '—'}</span></td>` : `<td class="num" style="font-size:9px;color:var(--text2)">Uds / Lote<br><span style="font-size:12px;color:var(--text)">${data.unidades_calculo ? Math.round(data.unidades_calculo).toLocaleString() : '—'}</span></td>`}
+      <td class="num" style="font-size:9px;color:var(--text2)">${costeLabelFull}<br>
+        ${costeFullVal != null
+          ? `<input type="number" id="calc-coste-${escDivId}" class="esc-coste-input esc-coste-input-full"
+                    step="0.001" min="0.001" value="${costeFullVal.toFixed(3)}"
+                    title="Editar para recalcular precio"
+                    onclick="event.stopPropagation()"
+                    onchange="event.stopPropagation();calcularPrecio('${esc(cod)}','${escDivId}')">`
+          : '<span style="font-size:12px;color:var(--accent2)">—</span>'}
+        ${!esFormato && costeAmasijoBob != null ? `<br><span style="font-size:8px;color:var(--text3)">+ Bobina:</span> <span style="font-size:11px;color:var(--accent2)">${costeAmasijoBob.toFixed(3)} €</span>` : ''}
+      </td>
+      ${numUds != null ? `<td class="num" style="font-size:9px;color:var(--text2)">Nº Unidades<br><span style="font-size:12px;color:var(--text)">${Math.round(numUds).toLocaleString()}</span></td>` : '<td></td>'}
+      ${costeUd != null
+        ? `<td class="num" style="font-size:9px;color:var(--text2)">Coste / Ud.<br><span style="font-size:13px;color:var(--accent2)">${costeUd.toFixed(3)} €</span></td>`
+        : '<td></td>'}
+    </tr>`;
+
+    const pendienteCount = data.componentes.filter(c => c.precio_fuente === 'pendiente').length;
+    const pendienteNote = pendienteCount > 0
+      ? `<div style="font-size:9px;color:var(--red);margin-top:6px;">&#9888; ${pendienteCount} componente${pendienteCount>1?'s':''} sin precio escalado</div>`
+      : '';
+
+    sec.innerHTML = `<div class="section-box">
+      <div class="section-title">&#9881;&#65039; Escandallo <span style="font-weight:400;color:var(--text3)">(${comps.length} componentes)</span></div>
+      <div style="overflow-x:auto">
+        <table class="esc-table">
+          <thead><tr>
+            <th style="width:36px">Ord.</th>
+            <th>Componente</th>
+            <th class="num">Uds. nec.</th>
+            <th class="num">Precio (€/kg)</th>
+            <th class="num">% Coste</th>
+            <th class="num">Últ. compra</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+          <tfoot>${footerHtml}</tfoot>
+        </table>
+      </div>
+      ${pendienteNote}
+    </div>
+    <div class="calc-precio-box">
+      <div class="section-title">&#128182; Precio calculado</div>
+      <div id="calc-result-${escDivId}" class="calc-result"></div>
+    </div>`;
+
+    if (costeParaMotor != null && costeParaMotor > 0) {
+      calcularPrecio(cod, escDivId);
+    }
+  } catch (e) {
+    const sec = document.getElementById('esc-section');
+    if (sec) sec.innerHTML = '';
+  }
+}
+
+// ─── MOTOR DE PRECIOS ────────────────────────────────────────────────────────
+
+// Metadatos de cada nivel de la cascada de precios (mismo orden que el backend).
+// `label`  — etiqueta larga para nota HTML
+// `cls`    — clase CSS del badge (coherente con el escandallo)
+// `short`  — etiqueta corta del badge (3 caracteres max)
+// `txt`    — etiqueta para el tooltip de texto plano (inline)
+const _FUENTE_META = {
+  reposicion:    {label: 'Precio reposición (VPR)',        cls: 'esc-badge-escalado', short: 'Rep', txt: 'Reposición'},
+  ultima_compra: {label: 'Última compra',                  cls: 'esc-badge-ultima',   short: 'UC',  txt: 'Última compra'},
+  cambio_codigo: {label: 'Cambio de código (SGA-TR)',      cls: 'esc-badge-cambio',   short: 'CC',  txt: 'Cambio de código'},
+  receta:        {label: 'Coste de receta (Mat_Formula)',  cls: 'esc-badge-receta',   short: 'Rec', txt: 'Receta'},
+  pendiente:     {label: 'Pendiente (sin precio)',         cls: 'esc-badge-pendiente',short: '?',   txt: 'Pendiente'},
+};
+const _FUENTE_ORDER = ['reposicion','ultima_compra','cambio_codigo','receta','pendiente'];
+
+// Agrupa las materias primas del escandallo por `precio_fuente`.
+// Solo cuenta materias primas — material auxiliar queda fuera del coste amasijo.
+function _calcFuentesBuckets(cod) {
+  const data = escCache.get(cod);
+  if (!data || !data.componentes || !data.componentes.length) return null;
+  const mps = data.componentes.filter(c => c.tipo_componente !== 'material_auxiliar');
+  if (!mps.length) return null;
+  const buckets = {};
+  let total = 0;
+  for (const c of mps) {
+    const f = c.precio_fuente || 'pendiente';
+    if (!buckets[f]) buckets[f] = {n: 0, sum: 0};
+    buckets[f].n += 1;
+    if (c.coste_componente != null) {
+      buckets[f].sum += c.coste_componente;
+      total += c.coste_componente;
+    }
+  }
+  return {buckets, total, n_mp: mps.length};
+}
+
+// Construye el HTML de la nota con el desglose de fuentes (versión completa).
+function _buildFuentesNoteHtml(cod) {
+  const info = _calcFuentesBuckets(cod);
+  if (!info) return '';
+  const {buckets, total} = info;
+
+  const rows = _FUENTE_ORDER.filter(f => buckets[f]).map(f => {
+    const m = _FUENTE_META[f];
+    const b = buckets[f];
+    const pct = total > 0 ? (b.sum / total * 100) : 0;
+    const compWord = b.n === 1 ? 'componente' : 'componentes';
+    const valStr = f === 'pendiente'
+      ? `${b.n} ${compWord} sin precio (no suma al amasijo)`
+      : `${b.n} ${compWord} · ${b.sum.toFixed(3)} € · ${pct.toFixed(1)}%`;
+    return `<div class="calc-fuente-row">
+      <span class="${m.cls}">${m.short}</span>
+      <span class="calc-fuente-lbl">${m.label}</span>
+      <span class="calc-fuente-val">${valStr}</span>
+    </div>`;
+  }).join('');
+
+  const pendN = (buckets.pendiente && buckets.pendiente.n) || 0;
+  const pendWarn = pendN > 0
+    ? `<div class="calc-fuentes-warn">&#9888; ${pendN} componente${pendN > 1 ? 's' : ''} sin precio: el coste real podría ser superior al calculado.</div>`
+    : '';
+
+  return `<div class="calc-fuentes-note">
+    <div class="calc-fuentes-title">
+      <span>&#128203; Fuentes usadas en el cálculo</span>
+      <span class="calc-fuentes-total">Amasijo: ${total.toFixed(3)} €</span>
+    </div>
+    <div class="calc-fuentes-list">${rows}</div>
+    ${pendWarn}
+    <div class="calc-fuentes-help">Orden de la cascada: Precio escalado &rarr; Última compra &rarr; Cambio de código (SGA-TR) &rarr; Coste de receta (Mat_Formula). El primer nivel con dato es el que se usa para cada componente.</div>
+  </div>`;
+}
+
+// Construye un tooltip en texto plano (para la chip compacta de la tarjeta).
+function _buildFuentesTooltip(cod) {
+  const info = _calcFuentesBuckets(cod);
+  if (!info) return '';
+  const {buckets, total} = info;
+  const lines = ['Fuentes del cálculo:'];
+  for (const f of _FUENTE_ORDER) {
+    if (!buckets[f]) continue;
+    const b = buckets[f];
+    if (f === 'pendiente') {
+      lines.push(`- ${_FUENTE_META[f].txt}: ${b.n} sin precio`);
+    } else {
+      const pct = total > 0 ? (b.sum / total * 100) : 0;
+      lines.push(`- ${_FUENTE_META[f].txt}: ${b.n} comp  (${b.sum.toFixed(2)}€  ${pct.toFixed(0)}%)`);
+    }
+  }
+  lines.push('');
+  lines.push(`Amasijo total: ${total.toFixed(2)}€`);
+  return lines.join('\n');
+}
+
+async function calcularPrecio(cod, divId) {
+  const inputEl  = document.getElementById(`calc-coste-${divId}`);
+  const resultEl = document.getElementById(`calc-result-${divId}`);
+  const btnEl    = document.getElementById(`calc-btn-${divId}`);
+
+  // DIAGNOSTICS: guardar el último intento en window para poder inspeccionarlo
+  // desde la consola del navegador con  window.__lastPrecioCall
+  window.__lastPrecioCall = {cod, divId, t0: Date.now(), stage: 'start'};
+
+  if (!resultEl) {
+    console.warn('[calcularPrecio] resultEl no encontrado:', `calc-result-${divId}`);
+    window.__lastPrecioCall.stage = 'no-result-el';
+    return;
+  }
+
+  const costeRaw = inputEl?.value;
+  const coste = parseFloat(costeRaw);
+  window.__lastPrecioCall.costeRaw = costeRaw;
+  window.__lastPrecioCall.coste = coste;
+
+  if (!coste || coste <= 0 || isNaN(coste)) {
+    resultEl.innerHTML = `<span style="font-size:9px;color:var(--red)">Introduce un coste válido (valor actual: ${esc(String(costeRaw))})</span>`;
+    window.__lastPrecioCall.stage = 'invalid-coste';
+    return;
+  }
+
+  if (btnEl) btnEl.disabled = true;
+  resultEl.innerHTML = `<span style="font-size:9px;color:var(--text3)">&#8987; Calculando...</span>`;
+
+  const payload = {endpoint: 1, codigo: cod, coste_amasijo: coste};
+  window.__lastPrecioCall.payload = payload;
+
+  let resp, rawText, d;
+  try {
+    resp = await fetch(`${API}/api/prices/calcular`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    window.__lastPrecioCall.httpStatus = resp.status;
+    window.__lastPrecioCall.stage = 'fetch-ok';
+
+    // Leemos como texto primero para tener diagnóstico completo incluso si no es JSON
+    rawText = await resp.text();
+    window.__lastPrecioCall.rawText = rawText;
+
+    try {
+      d = JSON.parse(rawText);
+    } catch (pe) {
+      console.error('[calcularPrecio] respuesta no-JSON HTTP', resp.status, rawText.slice(0, 500));
+      resultEl.innerHTML = `<span style="font-size:9px;color:var(--red)">Respuesta no válida del servidor (HTTP ${resp.status}). Revisa consola.</span>`;
+      window.__lastPrecioCall.stage = 'not-json';
+      return;
+    }
+    window.__lastPrecioCall.responseBody = d;
+
+    if (!resp.ok && !d) {
+      resultEl.innerHTML = `<span style="font-size:9px;color:var(--red)">HTTP ${resp.status}</span>`;
+      window.__lastPrecioCall.stage = 'http-error-no-body';
+      return;
+    }
+
+    if (!d.ok) {
+      const errMsg = d.error || d.message || `HTTP ${resp.status}`;
+      console.warn('[calcularPrecio] motor devolvió error:', errMsg, d);
+      resultEl.innerHTML = `<span style="font-size:9px;color:var(--red)">
+        ${esc(errMsg)}</span>`;
+      window.__lastPrecioCall.stage = 'motor-error';
+      return;
+    }
+
+    const f2  = v => v != null ? parseFloat(v).toFixed(2) + '\u00a0€' : '—';
+    const f3  = v => v != null ? parseFloat(v).toFixed(3) + '\u00a0€' : '—';
+    const fp  = v => v != null ? parseFloat(v).toFixed(1) + '\u00a0%' : '—';
+
+    const escalados = [
+      {label:'3.000 uds', key:'escalado3000'},
+      {label:'5.000 uds', key:'escalado5000'},
+      {label:'25.000 uds', key:'escalado25000'},
+      {label:'50.000 uds', key:'escalado50000'},
+    ].filter(e => d[e.key] != null && parseFloat(d[e.key]) > 0)
+     .map(e => `<div class="calc-esc-chip"><span>${esc(e.label)}</span>${f3(d[e.key])}</div>`)
+     .join('');
+
+    const fuentesNote = _buildFuentesNoteHtml(cod);
+
+    resultEl.innerHTML = `
+      <div class="calc-result-grid">
+        <div class="calc-kpi"><span class="lbl">Precio / Pack</span><span class="val hl">${f2(d.precioVentaPack)}</span></div>
+        <div class="calc-kpi"><span class="lbl">Precio / kg prod</span><span class="val">${f2(d.precio1kgProd)}</span></div>
+        <div class="calc-kpi"><span class="lbl">Precio / ud</span><span class="val">${f3(d.precio1bargel)}</span></div>
+        <div class="calc-kpi"><span class="lbl">Beneficio</span><span class="val">${fp(d.beneficio)}</span></div>
+        <div class="calc-kpi"><span class="lbl">Margen coste</span><span class="val">${fp(d.margenCosto)}</span></div>
+      </div>
+      ${escalados ? `<div class="calc-escalados">${escalados}</div>` : ''}
+      ${fuentesNote}`;
+    window.__lastPrecioCall.stage = 'rendered';
+    window.__lastPrecioCall.precioVentaPack = d.precioVentaPack;
+    console.info('[calcularPrecio] OK', cod, 'pack=', d.precioVentaPack, '€');
+  } catch(e) {
+    console.error('[calcularPrecio] excepción:', e, 'resp=', resp, 'rawText=', rawText);
+    resultEl.innerHTML = `<span style="font-size:9px;color:var(--red)">Sin conexión con el motor de precios (${esc(e.message || String(e))})</span>`;
+    window.__lastPrecioCall.stage = 'exception';
+    window.__lastPrecioCall.exception = String(e);
+  } finally {
+    if (btnEl) btnEl.disabled = false;
+    window.__lastPrecioCall.t1 = Date.now();
+  }
+}
+
+async function calcularPrecioInline(cod, safeId, costeDefault) {
+  const spanEl = document.getElementById(`calc-inline-${safeId}`);
+  if (!spanEl) return;
+  spanEl.textContent = '⏳';
+  try {
+    const resp = await fetch(`${API}/api/prices/calcular`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({endpoint: 1, codigo: cod, coste_amasijo: costeDefault})
+    });
+    const rawText = await resp.text();
+    let d;
+    try { d = JSON.parse(rawText); } catch { d = null; }
+
+    if (d && d.ok && d.precioVentaPack != null) {
+      spanEl.textContent = parseFloat(d.precioVentaPack).toFixed(2) + ' €/pack';
+      // Tooltip con el desglose de fuentes (pasa el ratón por encima
+      // de la chip para ver qué se usó en el cálculo).
+      const tip = _buildFuentesTooltip(cod);
+      if (tip) spanEl.title = tip;
+    } else if (d && d.error) {
+      spanEl.textContent = esc(d.error).slice(0, 40);
+    } else {
+      console.warn('[calcularPrecioInline] respuesta rara HTTP', resp.status, rawText.slice(0, 300));
+      spanEl.textContent = `HTTP ${resp.status}`;
+    }
+  } catch(e) {
+    console.error('[calcularPrecioInline] error:', e);
+    spanEl.textContent = 'error';
+  }
+}
+
+function closeModal() {
+  document.getElementById("modal").style.display = "none";
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+// ─── UTILITIES ────────────────────────────────────────────────────
+function esc(s) {
+  if (s == null) return '';
+  const d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML;
+}
+
+function fmtN(v) {
+  if (v == null || v === '' || v === '0E-10') return '—';
+  const n = Number(v);
+  if (isNaN(n) || n === 0) return '0';
+  return n >= 100 ? Math.round(n).toLocaleString() : n.toFixed(1);
+}
+
+function highlightText(escapedHtml, query) {
+  if (!query) return escapedHtml;
+  const words = query.split(/\s+/).filter(w => w.length >= 2);
+  let result = escapedHtml;
+  for (const word of words) {
+    const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(${escaped})`, 'gi');
+    result = result.replace(regex, '<mark>$1</mark>');
+  }
+  return result;
+}
+
+// ─── SIMILARITY SEARCH ────────────────────────────────────────────
+let simMode = false;
+let simRefCod = null;
+let simRefDesc = null;
+let simExcluded = new Set();
+let simType = null;
+let simResults = null;
+let simDebounce = null;
+let simCustomWeights = null;  // null = use defaults, or {category:25, ...} summing ~100
+let simDefaultWeights = null; // loaded from API
+const SIM_DIM_ORDER = ["category","subcategory","protein_source","macros","allergens","flavor","coating","description"];
+const SIM_DIM_LABELS = {
+  category: "Categoría", subcategory: "Subcategoría", protein_source: "Fuente proteica",
+  macros: "Perfil nutricional", allergens: "Alérgenos", flavor: "Sabor", coating: "Recubrimiento",
+  description: "Descripción",
+};
+const SIM_DIM_ICONS = {
+  category: "&#128193;", subcategory: "&#128194;", protein_source: "&#129385;",
+  macros: "&#129518;", allergens: "&#9888;&#65039;", flavor: "&#127848;",
+  coating: "&#127851;", description: "&#128221;",
+};
+const SIM_VERDICT_LABELS = {
+  match: "Coincide", similar: "Similar", different: "Diferente", no_data: "Sin datos",
+};
+const SIM_VERDICT_ICONS = {
+  match: "&#10004;", similar: "&#8776;", different: "&#10008;", no_data: "&#9675;",
+};
+
+function switchMode(mode) {
+  simMode = (mode === 'sim');
+  document.querySelectorAll('.sim-tab').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
+  document.getElementById('panel-filters').style.display = simMode ? 'none' : '';
+  document.getElementById('panel-sim').style.display = simMode ? '' : 'none';
+  document.getElementById('btn-row-search').style.display = simMode ? 'none' : '';
+  document.getElementById('btn-row-sim').style.display = simMode ? '' : 'none';
+  const inp = document.getElementById('search-input');
+  if (simMode) {
+    inp.placeholder = 'Escribe o pega un código LB o K...';
+    renderSimPanel();
+    if (!simRefCod) showSimEmpty();
+    else doSimilarSearch();
+  } else {
+    inp.placeholder = 'Buscar productos, codigos, ingredientes...';
+    inp.value = '';
+    doSearch();
+  }
+}
+
+function showSimEmpty() {
+  document.getElementById('content-area').innerHTML = `
+    <div class="empty">
+      <div class="empty-icon">&#129516;</div>
+      <div class="empty-title">Búsqueda por similitud</div>
+      <div class="empty-desc">Escribe un código LB o K en la barra de búsqueda, selecciona el producto de referencia y el sistema encontrará los más similares ordenados por puntuación.</div>
+    </div>`;
+}
+
+function setSimReference(cod, desc) {
+  simRefCod = cod;
+  simRefDesc = desc;
+  simExcluded = new Set();
+  document.getElementById('search-input').value = '';
+  hideSuggest();
+  renderSimPanel();
+  doSimilarSearch();
+}
+
+function renderSimPanel() {
+  const panel = document.getElementById('panel-sim');
+  if (!panel) return;
+  let html = `<div style="padding:8px 12px;overflow-y:auto;flex:1;">`;
+
+  if (simRefCod) {
+    const ref = simResults?.reference;
+    const macros = ref?.macros || {};
+    const isK = ref?.is_k;
+    const displayCod = ref?.cod || simRefCod;
+    const displayDesc = simRefDesc || simRefCod;
+    html += `
+      <div style="margin-bottom:8px;">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text3);margin-bottom:4px;">Referencia</div>
+        <div class="sim-ref-card">
+          <div class="sim-ref-hdr">
+            <span class="pc-prefix-badge ${isK ? 'pc-prefix-k' : 'pc-prefix-lb'}" style="font-size:7px;">${isK ? 'K' : 'LB'}</span>
+            <span class="sim-ref-name" title="${esc(displayDesc)}">${esc(displayDesc)}</span>
+          </div>
+          <div class="sim-ref-cod">${esc(displayCod)}</div>
+          ${ref?.category ? `<div class="sim-ref-cat">${esc(ref.category)}${ref.subcategory ? ' › '+esc(ref.subcategory) : ''}</div>` : ''}
+          ${(macros.proteina>0||macros.grasas>0||macros.carbos>0) ? `<div class="sim-ref-macros">
+            ${macros.proteina>0 ? `<span class="sim-ref-macro">P:${fmtN(macros.proteina)}g</span>` : ''}
+            ${macros.grasas>0 ? `<span class="sim-ref-macro">G:${fmtN(macros.grasas)}g</span>` : ''}
+            ${macros.carbos>0 ? `<span class="sim-ref-macro">C:${fmtN(macros.carbos)}g</span>` : ''}
+            ${macros.fibra>0 ? `<span class="sim-ref-macro">Fib:${fmtN(macros.fibra)}g</span>` : ''}
+          </div>` : ''}
+        </div>
+        <button class="btn-s" style="width:100%;font-size:9px;margin-top:2px;" onclick="clearSimRef()">&#10005; Cambiar referencia</button>
+      </div>`;
+
+    html += `
+      <div style="margin-bottom:8px;">
+        <div class="sim-dims-title">
+          <span>Criterios activos</span>
+          ${simExcluded.size > 0 ? `<span style="font-size:8px;color:var(--accent);cursor:pointer;font-weight:600;" onclick="restoreSimDims()">Restaurar todos</span>` : ''}
+        </div>
+        <div class="sim-dims">
+          ${SIM_DIM_ORDER.map(dim => {
+            const active = !simExcluded.has(dim);
+            return `<span class="sim-dim-chip ${active?'active':'inactive'}" onclick="toggleSimDim('${dim}')">
+              <span class="sdx">${active ? '&#10005;' : '&#10010;'}</span>${esc(SIM_DIM_LABELS[dim]||dim)}
+            </span>`;
+          }).join('')}
+        </div>
+      </div>
+      <div style="margin-bottom:6px;">
+        <div class="sim-dims-title"><span>Tipo</span></div>
+        <div class="sim-type-row">
+          <button class="sim-type-btn ${!simType?'on':''}" style="${!simType?'background:var(--accent)':''}" onclick="setSimType(null)">Todos</button>
+          <button class="sim-type-btn ${simType==='lb'?'on':''}" style="${simType==='lb'?'background:var(--blue)':''}" onclick="setSimType('lb')">Solo LB</button>
+          <button class="sim-type-btn ${simType==='k'?'on':''}" style="${simType==='k'?'background:var(--orange)':''}" onclick="setSimType('k')">Solo K</button>
+        </div>
+      </div>`;
+
+    // Weight sliders
+    const w = simCustomWeights || simDefaultWeights || {};
+    html += `<div class="sim-weights-section">
+      <div class="sim-weights-title">
+        <span>Ponderacion</span>
+        ${simCustomWeights ? '<span class="reset-weights" onclick="resetSimWeights()">Restaurar</span>' : ''}
+      </div>`;
+    for (const dim of SIM_DIM_ORDER) {
+      const val = Math.round(w[dim] || 0);
+      html += `<div class="sim-weight-row">
+        <span class="sim-weight-label">${esc(SIM_DIM_LABELS[dim] || dim)}</span>
+        <input type="range" min="0" max="60" value="${val}" class="sim-weight-slider" data-dim="${dim}" oninput="onWeightSlider('${dim}', this.value)">
+        <span class="sim-weight-val" id="wval-${dim}">${val}</span>
+      </div>`;
+    }
+    const total = SIM_DIM_ORDER.reduce((s, d) => s + Math.round(w[d] || 0), 0);
+    html += `<div class="sim-weights-total">Total: <span id="weights-total">${total}</span>/100</div>`;
+    html += `</div>`;
+
+  } else {
+    html += `<div class="sim-ref-none">&#128269; Escribe un código LB o K en la barra de búsqueda y selecciónalo para buscar similares.</div>`;
+  }
+
+  html += `</div>`;
+  panel.innerHTML = html;
+}
+
+// ─── WEIGHT SLIDER LOGIC ──────────────────────────────────────────
+function onWeightSlider(dim, val) {
+  val = parseInt(val, 10);
+  if (!simCustomWeights) {
+    simCustomWeights = {...(simDefaultWeights || {})};
+  }
+  simCustomWeights[dim] = val;
+  // Update display
+  const valEl = document.getElementById('wval-' + dim);
+  if (valEl) valEl.textContent = val;
+  const total = SIM_DIM_ORDER.reduce((s, d) => s + Math.round(simCustomWeights[d] || 0), 0);
+  const totalEl = document.getElementById('weights-total');
+  if (totalEl) {
+    totalEl.textContent = total;
+    totalEl.style.color = (total >= 95 && total <= 105) ? 'var(--green)' : 'var(--orange)';
+  }
+  clearTimeout(simDebounce);
+  simDebounce = setTimeout(doSimilarSearch, 600);
+}
+
+function resetSimWeights() {
+  simCustomWeights = null;
+  renderSimPanel();
+  if (simRefCod) doSimilarSearch();
+}
+
+async function loadDefaultWeights() {
+  try {
+    const data = await fetch(`${API}/api/similar/weights/defaults`).then(r => r.json());
+    if (data.weights) {
+      simDefaultWeights = data.weights;
+    }
+  } catch (e) {
+    console.warn('Could not load default weights:', e);
+    simDefaultWeights = {category:25,subcategory:18,protein_source:16,macros:17,allergens:8,flavor:6,coating:4,description:6};
+  }
+}
+
+function toggleSimDim(dim) {
+  if (simExcluded.has(dim)) simExcluded.delete(dim);
+  else simExcluded.add(dim);
+  renderSimPanel();
+  if (simRefCod) { clearTimeout(simDebounce); simDebounce = setTimeout(doSimilarSearch, 350); }
+}
+
+function restoreSimDims() {
+  simExcluded.clear();
+  renderSimPanel();
+  if (simRefCod) doSimilarSearch();
+}
+
+function setSimType(type) {
+  simType = type;
+  renderSimPanel();
+  if (simRefCod) doSimilarSearch();
+}
+
+function clearSimRef() {
+  simRefCod = null; simRefDesc = null; simResults = null;
+  simExcluded.clear();
+  document.getElementById('search-input').value = '';
+  renderSimPanel();
+  showSimEmpty();
+}
+
+function clearSimFilters() {
+  simExcluded.clear(); simType = null;
+  renderSimPanel();
+  if (simRefCod) doSimilarSearch();
+}
+
+async function doSimilarSearch() {
+  if (!simRefCod) return;
+  const cnt = document.getElementById('content-area');
+  const t0 = performance.now();
+  cnt.innerHTML = `<div class="loading"><div class="spinner"></div><div class="loading-text">Buscando similares...</div></div>`;
+
+  const params = new URLSearchParams();
+  if (simExcluded.size) params.set('exclude', [...simExcluded].join(','));
+  if (simType) params.set('product_type', simType);
+  params.set('limit', '25');
+  if (simCustomWeights) {
+    params.set('weights', JSON.stringify(simCustomWeights));
+  }
+
+  try {
+    const data = await fetch(`${API}/api/similar/${encodeURIComponent(simRefCod)}?${params}`).then(r => r.json());
+    if (data.error) throw new Error(data.error);
+    simResults = data;
+    renderSimPanel();
+    renderSimilarityResults(data, Math.round(performance.now() - t0));
+  } catch(e) {
+    cnt.innerHTML = `<div class="empty"><div class="empty-icon">&#9888;&#65039;</div><div class="empty-title">Error</div><div class="empty-desc">${esc(e.message)}</div></div>`;
+  }
+}
+
+// ─── (removed: profile document upload flow) ─────────────────────
+
+const MACRO_LABELS_SIM = {proteina:'Proteina',grasas:'Grasas',grasas_sat:'Grasas sat.',carbos:'Carbos',azucares:'Azucares',fibra:'Fibra',sodio:'Sodio'};
+
+function toggleSimBreakdown(safeId) {
+  const panel = document.getElementById(`simbd-${safeId}`);
+  const btn   = document.getElementById(`simtog-${safeId}`);
+  if (!panel) return;
+  const open = panel.style.display !== 'none';
+  panel.style.display = open ? 'none' : 'block';
+  if (btn) btn.classList.toggle('open', !open);
+
+  // Lazy-load price history charts on first open
+  if (!open && !panel.dataset.priceLoaded) {
+    panel.dataset.priceLoaded = '1';
+    const canvases = panel.querySelectorAll('canvas.ph-canvas');
+    canvases.forEach(cv => {
+      const cod = cv.dataset.cod;
+      if (cod) loadPriceHistory(cod, cv.id);
+    });
+  }
+}
+
+/* ── Build the full comparison view for a candidate ────────────────── */
+function buildComparePanel(r, refData) {
+  const cd = r.comparison_data;
+  if (!cd || !Object.keys(cd).length) return '';
+
+  const conf = Math.round((r.confidence || 0) * 100);
+  const confCls = conf >= 70 ? 'sim-conf-hi' : conf >= 45 ? 'sim-conf-md' : 'sim-conf-lo';
+  const pct = Math.round((r.score || 0) * 100);
+  const epct = Math.round((r.effective_score || 0) * 100);
+
+  let html = `<div class="sim-compare">`;
+  // Header
+  html += `<div class="sim-compare-hdr">
+    <div class="sim-compare-title">Comparativa: ${esc(refData.cod)} vs ${esc(r.cod)}</div>
+    <div class="sim-compare-scores">
+      <span class="sim-score-badge" style="background:${pct>=70?'#15803d':pct>=45?'#336699':'#b45309'};font-size:9px;">${pct}%</span>
+      <span class="sim-conf-badge ${confCls}" title="Confianza: porcentaje del perfil que se pudo comparar realmente">&#128202; ${conf}%</span>
+    </div>
+  </div>`;
+
+  // Column headers
+  html += `<div class="sim-compare-cols hdr-row">
+    <div>Dimension</div><div>Referencia</div><div>Candidato</div><div>Sim</div>
+  </div>`;
+
+  // Each dimension
+  for (const dim of SIM_DIM_ORDER) {
+    const info = cd[dim];
+    if (!info) continue;
+
+    const sim = info.sim;
+    const simPct = sim != null ? Math.round(sim * 100) : null;
+    const verdict = info.verdict || 'no_data';
+    const vpillCls = 'sim-vpill sim-vpill-' + verdict;
+    const dimLabel = SIM_DIM_LABELS[dim] || dim;
+    const dimIcon = SIM_DIM_ICONS[dim] || '';
+
+    let refCell = '', candCell = '';
+
+    if (dim === 'category' || dim === 'subcategory' || dim === 'protein_source' || dim === 'coating') {
+      refCell = esc(info.ref_value || '—');
+      candCell = esc(info.cand_value || '—');
+    } else if (dim === 'flavor') {
+      const rv = info.ref_value;
+      const cv = info.cand_value;
+      refCell = rv && rv.length ? rv.map(f => esc(f)).join(', ') : '<span style="color:var(--text3)">—</span>';
+      candCell = cv && cv.length ? cv.map(f => {
+        const isCommon = (info.common||[]).includes(f);
+        return isCommon ? `<b style="color:var(--green)">${esc(f)}</b>` : esc(f);
+      }).join(', ') : '<span style="color:var(--text3)">—</span>';
+    } else if (dim === 'macros') {
+      refCell = buildMacroBars(info.fields, 'ref', refData);
+      candCell = buildMacroBars(info.fields, 'cand', r);
+    } else if (dim === 'allergens') {
+      refCell = buildAllergenCell(info.ref_contains, info.ref_traces);
+      candCell = buildAllergenCell(info.cand_contains, info.cand_traces);
+    } else if (dim === 'description') {
+      const tokens = info.common_tokens || [];
+      refCell = `<span style="font-size:8px;color:var(--text3)">${esc((info.ref_value||'').substring(0, 60))}${(info.ref_value||'').length > 60 ? '...' : ''}</span>`;
+      candCell = tokens.length
+        ? tokens.slice(0, 8).map(t => `<span class="sim-token-common">${esc(t)}</span>`).join(' ')
+        : `<span style="font-size:8px;color:var(--text3)">${esc((info.cand_value||'').substring(0, 60))}${(info.cand_value||'').length > 60 ? '...' : ''}</span>`;
+    }
+
+    const simCell = simPct != null
+      ? `<span class="${vpillCls}">${simPct}%</span>`
+      : `<span class="sim-vpill sim-vpill-no_data">—</span>`;
+
+    html += `<div class="sim-compare-cols">
+      <div><span class="dim-icon">${dimIcon}</span><span class="dim-label">${esc(dimLabel)}</span></div>
+      <div>${refCell}</div>
+      <div>${candCell}</div>
+      <div>${simCell}</div>
+    </div>`;
+
+    // Explanation row
+    if (info.explanation) {
+      html += `<div class="sim-explain-row"><b>${esc(dimLabel)}:</b> ${esc(info.explanation)}</div>`;
+    }
+  }
+
+  // Summary footer
+  const explanations = SIM_DIM_ORDER
+    .filter(d => cd[d]?.explanation && cd[d]?.comparable)
+    .map(d => cd[d].explanation);
+  if (explanations.length > 0) {
+    const nonCompDims = SIM_DIM_ORDER.filter(d => cd[d] && !cd[d].comparable);
+    let footer = '';
+    if (nonCompDims.length > 0) {
+      const names = nonCompDims.map(d => SIM_DIM_LABELS[d] || d).join(', ');
+      footer = `<div style="margin-top:4px;font-size:8px;color:var(--orange)">Sin datos comparables en: ${esc(names)} &mdash; peso redistribuido a las dimensiones con datos.</div>`;
+    }
+    html += `<div class="sim-explain-row" style="background:var(--bg3);border-top:2px solid var(--border2);">
+      <div style="font-size:8px;font-weight:700;color:var(--text2);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.06em;">Resumen</div>
+      <div>Similitud bruta: <b>${pct}%</b> &middot; Confianza del perfil: <b>${conf}%</b> &middot; Puntuacion efectiva: <b>${epct}%</b></div>
+      ${footer}
+    </div>`;
+  }
+
+  // Price history charts — enriched with cost line, margin shading, escalados
+  const phId = Math.random().toString(36).slice(2, 10);
+  html += `<div class="sim-price-history">
+    <div class="sim-price-title">Historico de precios</div>
+    <div class="sim-price-row">
+      <div>
+        <div style="font-size:9px;font-weight:600;color:var(--text2);margin-bottom:4px;">${esc(refData.cod)} (Ref.)</div>
+        <div style="position:relative;height:200px;">
+          <canvas class="ph-canvas" id="ph-ref-${phId}" data-cod="${esc(refData.cod)}"></canvas>
+        </div>
+        <div id="ph-meta-ref-${phId}" class="ph-meta"></div>
+      </div>
+      <div>
+        <div style="font-size:9px;font-weight:600;color:var(--text2);margin-bottom:4px;">${esc(r.cod)} (Candidato)</div>
+        <div style="position:relative;height:200px;">
+          <canvas class="ph-canvas" id="ph-cand-${phId}" data-cod="${esc(r.cod)}"></canvas>
+        </div>
+        <div id="ph-meta-cand-${phId}" class="ph-meta"></div>
+      </div>
+    </div>
+  </div>`;
+
+  html += `</div>`;
+  return html;
+}
+
+function buildMacroBars(fields, side, product) {
+  if (!fields) return '<span style="color:var(--text3)">—</span>';
+  const macroOrder = ['proteina','grasas','grasas_sat','carbos','azucares','fibra','sodio'];
+  // Find max for scaling bars
+  let maxVal = 0;
+  for (const f of macroOrder) {
+    const fd = fields[f];
+    if (fd) {
+      if (fd.ref != null && fd.ref > maxVal) maxVal = fd.ref;
+      if (fd.cand != null && fd.cand > maxVal) maxVal = fd.cand;
+    }
+  }
+  if (maxVal <= 0) maxVal = 100;
+
+  let html = '<div class="sim-macro-bars">';
+  for (const f of macroOrder) {
+    const fd = fields[f];
+    if (!fd) continue;
+    const val = fd[side];
+    const hasData = fd[side + '_has_data'] !== false && val != null;
+    if (!hasData) continue;
+
+    const label = MACRO_LABELS_SIM[f] || f;
+    const unit = f === 'sodio' ? 'mg' : 'g';
+    const barW = Math.max(2, Math.round((val / maxVal) * 100));
+    const barCls = side === 'ref' ? 'sim-macro-bar-ref' : 'sim-macro-bar-cand';
+    const valCls = side === 'ref' ? 'sim-macro-val-ref' : 'sim-macro-val-cand';
+
+    // Show diff percentage on candidate side
+    let diffTag = '';
+    if (side === 'cand' && fd.diff_pct != null) {
+      const dp = fd.diff_pct;
+      const dc = Math.abs(dp) <= 10 ? 'var(--green)' : Math.abs(dp) <= 30 ? 'var(--blue)' : 'var(--orange)';
+      diffTag = ` <span style="font-size:6px;color:${dc}">${dp > 0 ? '+' : ''}${dp}%</span>`;
+    }
+
+    html += `<div style="display:flex;align-items:center;gap:3px;font-size:7px;">
+      <span style="width:48px;text-align:right;color:var(--text3);font-weight:600;flex-shrink:0;">${esc(label)}</span>
+      <div style="flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden;">
+        <div class="sim-macro-bar ${barCls}" style="width:${barW}%;"></div>
+      </div>
+      <span class="sim-macro-val ${valCls}" style="width:40px;">${fmtN(val)}${unit}${diffTag}</span>
+    </div>`;
+  }
+  html += '</div>';
+  return html;
+}
+
+function buildAllergenCell(contains, traces) {
+  if ((!contains || !contains.length) && (!traces || !traces.length)) {
+    return '<span style="font-size:8px;color:var(--text3)">Ninguno</span>';
+  }
+  let html = '<div class="sim-allergen-list">';
+  if (contains && contains.length) {
+    contains.forEach(a => { html += `<span class="sim-allergen-chip sim-allergen-contains">${esc(a)}</span>`; });
+  }
+  if (traces && traces.length) {
+    traces.forEach(a => { html += `<span class="sim-allergen-chip sim-allergen-traces" title="Trazas">${esc(a)}*</span>`; });
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderSimilarityResults(data, ms) {
+  const cnt = document.getElementById('content-area');
+  const ref = data.reference || {};
+  const results = data.results || [];
+
+  let html = `
+    <div class="sim-results-hdr">
+      <div class="sim-results-title">Similares a <span style="color:var(--accent);font-family:var(--mono)">${esc(ref.cod||simRefCod)}</span></div>
+      <div class="sim-results-sub">${esc(ref.desc||simRefDesc||'')} &middot; <b>${results.length}</b> resultado${results.length!==1?'s':''} de ${data.total_candidates||0} evaluados${ms ? ` &middot; ${(ms/1000).toFixed(2)}s` : ''}${simExcluded.size ? ` &middot; <span style="color:var(--orange)">${simExcluded.size} criterio${simExcluded.size>1?'s':''} excluido${simExcluded.size>1?'s':''}</span>` : ''}</div>
+    </div>`;
+
+  if (results.length === 0) {
+    html += `<div class="sim-empty-hint">
+      <b>Sin resultados con los criterios actuales.</b><br>
+      Prueba a eliminar criterios en la barra lateral (haz clic en los chips de criterios) para ampliar la busqueda.
+    </div>`;
+    cnt.innerHTML = html;
+    return;
+  }
+
+  // Scatter plot — configurable axes (Phase 3)
+  html += `<div class="sim-scatter-wrap" id="scatter-wrap">
+    <div class="sim-scatter-title">Analisis Multidimensional</div>
+    <div class="scatter-config" id="scatter-config">
+      <div class="scatter-cfg-group">
+        <span class="scatter-cfg-label">Eje X:</span>
+        <select class="scatter-cfg-sel" id="scatter-x" onchange="replotScatter()">
+          <option value="similitud" selected>Similitud %</option>
+          <option value="precio1kgProd">Precio EUR/kg</option>
+          <option value="precioVentaPack">Precio EUR/pack</option>
+          <option value="costo1kgmasa">Coste masa EUR/kg</option>
+          <option value="margenCostoPorc">Margen %</option>
+          <option value="beneficio">Beneficio EUR</option>
+          <option value="confianza">Confianza %</option>
+        </select>
+      </div>
+      <div class="scatter-cfg-group">
+        <span class="scatter-cfg-label">Eje Y:</span>
+        <select class="scatter-cfg-sel" id="scatter-y" onchange="replotScatter()">
+          <option value="similitud">Similitud %</option>
+          <option value="precio1kgProd" selected>Precio EUR/kg</option>
+          <option value="precioVentaPack">Precio EUR/pack</option>
+          <option value="costo1kgmasa">Coste masa EUR/kg</option>
+          <option value="margenCostoPorc">Margen %</option>
+          <option value="beneficio">Beneficio EUR</option>
+          <option value="confianza">Confianza %</option>
+        </select>
+      </div>
+      <div class="scatter-cfg-group">
+        <span class="scatter-cfg-label">Tamaño:</span>
+        <select class="scatter-cfg-sel" id="scatter-size" onchange="replotScatter()">
+          <option value="none" selected>Fijo</option>
+          <option value="precio1kgProd">Precio EUR/kg</option>
+          <option value="precioVentaPack">Precio EUR/pack</option>
+          <option value="margenCostoPorc">Margen %</option>
+          <option value="beneficio">Beneficio EUR</option>
+          <option value="confianza">Confianza %</option>
+          <option value="peso_grs">Peso (g)</option>
+        </select>
+      </div>
+      <div class="scatter-cfg-group">
+        <span class="scatter-cfg-label">Color:</span>
+        <select class="scatter-cfg-sel" id="scatter-color" onchange="replotScatter()">
+          <option value="tipo" selected>Tipo (LB/K)</option>
+          <option value="categoria">Categoria</option>
+          <option value="margen_rango">Rango margen</option>
+          <option value="cliente">Cliente</option>
+        </select>
+      </div>
+    </div>
+    <div class="sim-scatter-box" id="scatter-box">
+      <canvas id="scatter-chart"></canvas>
+    </div>
+    <div class="scatter-legend-inline" id="scatter-legend"></div>
+  </div>`;
+
+  html += `<div class="res-grid">`;
+  results.forEach(r => {
+    const pct = Math.round((r.score || 0) * 100);
+    const epct = Math.round((r.effective_score || r.score || 0) * 100);
+    const conf = Math.round((r.confidence || 0) * 100);
+    const scoreColor = pct >= 70 ? '#15803d' : pct >= 45 ? '#336699' : '#b45309';
+    const barColor   = pct >= 70 ? '#22c55e' : pct >= 45 ? '#336699' : '#f59e0b';
+    const confCls = conf >= 70 ? 'sim-conf-hi' : conf >= 45 ? 'sim-conf-md' : 'sim-conf-lo';
+    const safeId = r.cod.replace(/[^a-zA-Z0-9]/g, '_');
+    const cat = r.category || '';
+
+    const macros = r.macros || {};
+    const hasN = (macros.proteina||0)>0 || (macros.grasas||0)>0 || (macros.carbos||0)>0;
+    const macroHtml = hasN ? `<div class="pc-macros">
+      ${macros.grasas>0 ? `<span class="pc-macro" title="Grasas">&#129361;${fmtN(macros.grasas)}</span>` : ''}
+      ${macros.proteina>0 ? `<span class="pc-macro" title="Proteina">&#129385;${fmtN(macros.proteina)}</span>` : ''}
+      ${macros.carbos>0 ? `<span class="pc-macro" title="Carbos">&#127806;${fmtN(macros.carbos)}</span>` : ''}
+      ${macros.fibra>0 ? `<span class="pc-macro" title="Fibra">&#129388;${fmtN(macros.fibra)}</span>` : ''}
+    </div>` : '';
+
+    const tags = r.tags || {};
+    const tagChips = [];
+    if (tags.protein_source) tagChips.push(`<span class="pc-tag" style="background:var(--purple-bg);color:var(--purple)">${esc(tags.protein_source)}</span>`);
+    if (tags.flavor?.length) tagChips.push(`<span class="pc-tag" style="background:#fef3c7;color:#92400e">${esc(tags.flavor[0])}</span>`);
+    if (tags.coating) tagChips.push(`<span class="pc-tag" style="background:var(--blue-bg);color:var(--blue)">${esc(tags.coating)}</span>`);
+
+    const catInfo = categories.find(c => c.name === r.category) || {};
+    const comparePanel = buildComparePanel(r, ref);
+
+    html += `
+      <div class="sim-card" onclick="showDetail('${esc(r.cod)}')">
+        <div class="pc-r1">
+          <button class="pcard-toggle" id="ptog-${safeId}" title="Ver escandallo" onclick="event.stopPropagation();toggleCardEsc('${esc(r.cod)}','${safeId}','${esc(cat)}','${esc(r.desc||'')}')">&#9654;</button>
+          <span class="sim-score-badge" style="background:${scoreColor}">${pct}%</span>
+          <span class="sim-conf-badge ${confCls}" title="Confianza: ${conf}% del perfil pudo compararse">${conf}%</span>
+          <span class="pc-prefix-badge ${r.is_k?'pc-prefix-k':'pc-prefix-lb'}">${r.is_k?'K':'LB'}</span>
+          <div class="pc-name"><span class="pc-code-inline">(${esc(r.cod)})</span>${esc(r.desc)}</div>
+          ${macroHtml}
+        </div>
+        <div class="sim-score-bar-wrap">
+          <div class="sim-score-bar-fill" style="width:${epct}%;background:${barColor}"></div>
+        </div>
+        <div class="pc-r2">
+          <span class="pc-cat">${catInfo.icon||''} ${esc(r.category)}${r.subcategory?' > '+esc(r.subcategory):''}</span>
+          ${tagChips.length ? `<div class="pc-tags">${tagChips.join('')}</div>` : ''}
+        </div>
+        <div id="esci-${safeId}" class="esc-inline" style="display:none"></div>
+        ${comparePanel ? `
+          <button class="sim-bd-toggle" id="simtog-${safeId}" onclick="event.stopPropagation();toggleSimBreakdown('${safeId}')">&#128269; Ver comparativa detallada</button>
+          <div id="simbd-${safeId}" class="sim-bd-expanded" style="display:none;padding:0;border:none;background:transparent;">${comparePanel}</div>
+        ` : ''}
+      </div>`;
+  });
+
+  html += `</div>`;
+  cnt.innerHTML = html;
+  cnt.scrollTop = 0;
+
+  // Load scatter chart data
+  loadScatterChart(ref.cod, results);
+}
+
+// ─── SCATTER CHART (Phase 3: configurable axes) ──────────────────
+let scatterChartInstance = null;
+let scatterPriceData = null;   // cached API response
+let scatterRefCod = null;
+let scatterResults = null;
+
+const SCATTER_AXIS_LABELS = {
+  similitud: 'Similitud (%)',
+  precio1kgProd: 'Precio EUR/kg',
+  precioVentaPack: 'Precio EUR/pack',
+  costo1kgmasa: 'Coste masa EUR/kg',
+  margenCostoPorc: 'Margen (%)',
+  beneficio: 'Beneficio (EUR)',
+  confianza: 'Confianza (%)',
+  peso_grs: 'Peso (g)',
+};
+
+const SCATTER_COLOR_PALETTES = {
+  tipo: {LB: '#0524de', K: '#d97706'},
+  margen_rango: {alto: '#16a34a', medio: '#d97706', bajo: '#dc2626', sin_dato: '#aaa'},
+};
+
+function getScatterVal(dim, result, priceRow) {
+  if (dim === 'similitud') return Math.round((result.effective_score || result.score || 0) * 100);
+  if (dim === 'confianza') return Math.round((result.confidence || 0) * 100);
+  if (priceRow) {
+    if (dim === 'precio1kgProd') return priceRow.precio1kgProd || 0;
+    if (dim === 'precioVentaPack') return priceRow.precioVentaPack || 0;
+    if (dim === 'costo1kgmasa') return priceRow.costo1kgmasa || 0;
+    if (dim === 'margenCostoPorc') return priceRow.margenCostoPorc || 0;
+    if (dim === 'beneficio') return priceRow.beneficio || 0;
+    if (dim === 'peso_grs') return priceRow.peso_grs || 0;
+  }
+  return 0;
+}
+
+function getScatterColor(colorDim, result, priceRow) {
+  if (colorDim === 'tipo') return result.is_k ? SCATTER_COLOR_PALETTES.tipo.K : SCATTER_COLOR_PALETTES.tipo.LB;
+  if (colorDim === 'categoria') {
+    // Hash category name to a hue
+    const cat = result.category || '';
+    let h = 0; for (let i = 0; i < cat.length; i++) h = cat.charCodeAt(i) + ((h << 5) - h);
+    return `hsl(${Math.abs(h) % 360}, 60%, 50%)`;
+  }
+  if (colorDim === 'margen_rango') {
+    const m = priceRow ? (priceRow.margenCostoPorc || 0) : 0;
+    if (m === 0) return SCATTER_COLOR_PALETTES.margen_rango.sin_dato;
+    if (m >= 15) return SCATTER_COLOR_PALETTES.margen_rango.alto;
+    if (m >= 5) return SCATTER_COLOR_PALETTES.margen_rango.medio;
+    return SCATTER_COLOR_PALETTES.margen_rango.bajo;
+  }
+  if (colorDim === 'cliente') {
+    const cli = priceRow ? (priceRow.nombre_cliente || '') : '';
+    let h = 0; for (let i = 0; i < cli.length; i++) h = cli.charCodeAt(i) + ((h << 5) - h);
+    return `hsl(${Math.abs(h) % 360}, 55%, 48%)`;
+  }
+  return '#0524de';
+}
+
+function getScatterColorLabel(colorDim, result, priceRow) {
+  if (colorDim === 'tipo') return result.is_k ? 'K' : 'LB';
+  if (colorDim === 'categoria') return result.category || 'Sin cat.';
+  if (colorDim === 'margen_rango') {
+    const m = priceRow ? (priceRow.margenCostoPorc || 0) : 0;
+    if (m === 0) return 'Sin dato';
+    if (m >= 15) return 'Margen alto (≥15%)';
+    if (m >= 5) return 'Margen medio (5-15%)';
+    return 'Margen bajo (<5%)';
+  }
+  if (colorDim === 'cliente') return priceRow ? (priceRow.nombre_cliente || 'Sin cliente') : 'Sin cliente';
+  return '';
+}
+
+async function loadScatterChart(refCod, results) {
+  const box = document.getElementById('scatter-box');
+  const wrap = document.getElementById('scatter-wrap');
+  if (!box || !wrap || typeof Chart === 'undefined') return;
+
+  scatterRefCod = refCod;
+  scatterResults = results;
+
+  const allCodes = [refCod, ...results.map(r => r.cod)].filter(Boolean);
+  if (!allCodes.length) { wrap.style.display = 'none'; return; }
+
+  try {
+    const resp = await fetch(`${API}/api/prices/scatter?codes=${allCodes.map(encodeURIComponent).join(',')}`);
+    const data = await resp.json();
+
+    if (data.error || !data.prices) {
+      wrap.style.display = 'none';
+      return;
+    }
+
+    scatterPriceData = data.prices;
+    replotScatter();
+  } catch (e) {
+    console.warn('Scatter chart error:', e);
+    if (wrap) wrap.style.display = 'none';
+  }
+}
+
+function replotScatter() {
+  const box = document.getElementById('scatter-box');
+  const wrap = document.getElementById('scatter-wrap');
+  const legendDiv = document.getElementById('scatter-legend');
+  if (!box || !wrap || !scatterPriceData || !scatterRefCod || typeof Chart === 'undefined') return;
+
+  const xDim = document.getElementById('scatter-x')?.value || 'similitud';
+  const yDim = document.getElementById('scatter-y')?.value || 'precio1kgProd';
+  const sizeDim = document.getElementById('scatter-size')?.value || 'none';
+  const colorDim = document.getElementById('scatter-color')?.value || 'tipo';
+
+  const prices = scatterPriceData;
+  const results = scatterResults || [];
+
+  // Build unified list: ref (100% sim, 100% conf) + candidates
+  const refResult = {cod: scatterRefCod, score: 1, effective_score: 1, confidence: 1, is_k: scatterRefCod.startsWith('K'), category: '', isRef: true};
+  const allItems = [refResult, ...results];
+
+  // Collect all size values for normalization
+  const sizeVals = sizeDim !== 'none' ? allItems.map(r => getScatterVal(sizeDim, r, prices[r.cod])).filter(v => v > 0) : [];
+  const sizeMin = sizeVals.length ? Math.min(...sizeVals) : 0;
+  const sizeMax = sizeVals.length ? Math.max(...sizeVals) : 1;
+  const sizeRange = sizeMax - sizeMin || 1;
+
+  // Group by color label for legend
+  const colorGroups = new Map();
+
+  const points = [];
+  allItems.forEach(r => {
+    const p = prices[r.cod];
+    const xVal = getScatterVal(xDim, r, p);
+    const yVal = getScatterVal(yDim, r, p);
+    if (xVal === 0 && yVal === 0) return;
+
+    let radius = 5;
+    if (sizeDim !== 'none') {
+      const sv = getScatterVal(sizeDim, r, p);
+      radius = sv > 0 ? 4 + ((sv - sizeMin) / sizeRange) * 16 : 3;
+    }
+    if (r.isRef) radius = Math.max(radius, 9);
+
+    const color = getScatterColor(colorDim, r, p);
+    const clabel = getScatterColorLabel(colorDim, r, p);
+    if (!colorGroups.has(clabel)) colorGroups.set(clabel, color);
+
+    points.push({
+      x: xVal, y: yVal, r: radius,
+      cod: r.cod, desc: r.desc || r.cod, isRef: !!r.isRef,
+      bgColor: r.isRef ? color : (color.startsWith('#') ? color + '80' : color.replace(')', ',0.5)').replace('hsl', 'hsla').replace('rgb', 'rgba')),
+      borderColor: color,
+      clabel,
+    });
+  });
+
+  if (points.length === 0) {
+    wrap.style.display = 'none';
+    return;
+  }
+
+  // Destroy previous and recreate canvas sized to container
+  if (scatterChartInstance) { scatterChartInstance.destroy(); scatterChartInstance = null; }
+  const boxW = box.clientWidth || box.offsetWidth || 800;
+  const boxH = box.clientHeight || box.offsetHeight || 420;
+  box.innerHTML = `<canvas id="scatter-chart" width="${boxW}" height="${boxH}"></canvas>`;
+  const canvas = document.getElementById('scatter-chart');
+
+  // Use bubble chart for variable radius
+  scatterChartInstance = new Chart(canvas, {
+    type: 'bubble',
+    data: {
+      datasets: [{
+        data: points.map(pt => ({x: pt.x, y: pt.y, r: pt.r, _meta: pt})),
+        backgroundColor: points.map(pt => pt.bgColor),
+        borderColor: points.map(pt => pt.borderColor),
+        borderWidth: points.map(pt => pt.isRef ? 2.5 : 1),
+        pointStyle: points.map(pt => pt.isRef ? 'star' : 'circle'),
+        hoverRadius: 4,
+      }],
+    },
+    options: {
+      animation: false,
+      responsive: false,
+      plugins: {
+        legend: {display: false},
+        tooltip: {
+          backgroundColor: 'rgba(30,40,60,0.92)',
+          titleFont: {family: "'Open Sans'", size: 11, weight: '700'},
+          bodyFont: {family: "'Open Sans'", size: 10},
+          padding: 10,
+          cornerRadius: 6,
+          callbacks: {
+            title: function(items) {
+              const m = items[0]?.raw?._meta;
+              return m ? `${m.cod}${m.isRef ? '  ★ REFERENCIA' : ''}` : '';
+            },
+            label: function(ctx) {
+              const m = ctx.raw._meta;
+              const xLabel = SCATTER_AXIS_LABELS[xDim] || xDim;
+              const yLabel = SCATTER_AXIS_LABELS[yDim] || yDim;
+              const lines = [];
+              lines.push(`${xLabel}: ${typeof m.x === 'number' ? m.x.toFixed(2) : m.x}`);
+              lines.push(`${yLabel}: ${typeof m.y === 'number' ? m.y.toFixed(2) : m.y}`);
+              if (m.clabel) lines.push(`↳ ${m.clabel}`);
+              return lines;
+            }
+          },
+        },
+      },
+      scales: {
+        x: {
+          title: {display: true, text: SCATTER_AXIS_LABELS[xDim] || xDim, font: {family: "'Open Sans'", size: 12, weight: '600'}, color: '#374151'},
+          grid: {color: '#eef0f4', lineWidth: 1},
+          ticks: {font: {size: 10, family: "'Open Sans'"}, color: '#6b7280'},
+          border: {color: '#d1d5db'},
+        },
+        y: {
+          title: {display: true, text: SCATTER_AXIS_LABELS[yDim] || yDim, font: {family: "'Open Sans'", size: 12, weight: '600'}, color: '#374151'},
+          grid: {color: '#eef0f4', lineWidth: 1},
+          ticks: {font: {size: 10, family: "'Open Sans'"}, color: '#6b7280'},
+          border: {color: '#d1d5db'},
+        },
+      },
+    },
+  });
+
+  // Build inline legend from color groups
+  if (legendDiv) {
+    let lhtml = '';
+    colorGroups.forEach((color, label) => {
+      lhtml += `<span class="scatter-legend-item"><span class="scatter-legend-dot" style="background:${color}"></span>${esc(label)}</span>`;
+    });
+    legendDiv.innerHTML = lhtml;
+  }
+}
+
+// ─── PRICE HISTORY CHART (enriched) ──────────────────────────────
+const priceHistoryCache = new Map();
+let priceChartInstances = {};
+
+async function loadPriceHistory(cod, canvasId) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas || typeof Chart === 'undefined') return;
+
+  try {
+    let data;
+    if (priceHistoryCache.has(cod)) {
+      data = priceHistoryCache.get(cod);
+    } else {
+      data = await fetch(`${API}/api/prices/history/${encodeURIComponent(cod)}`).then(r => r.json());
+      priceHistoryCache.set(cod, data);
+    }
+
+    if (data.error || !data.history || data.history.length === 0) {
+      canvas.parentElement.innerHTML = '<div style="font-size:9px;color:var(--text3);padding:8px;">Sin historial de precios</div>';
+      return;
+    }
+
+    const history = data.history;
+    const labels = history.map(h => h.fecha || '');
+    const precioKg = history.map(h => h.precio1kgProd || 0);
+    const costoKg  = history.map(h => h.costo1kgmasa || 0);
+    const hasCost  = costoKg.some(v => v > 0);
+
+    // Margin fill: build array of background colors per segment
+    // green when margin > 15%, yellow 5-15%, red < 5%
+    const marginColors = history.map(h => {
+      const m = h.margenCostoPorc || 0;
+      if (m >= 15) return 'rgba(22,163,74,0.12)';
+      if (m >= 5)  return 'rgba(217,119,6,0.10)';
+      return 'rgba(220,38,38,0.10)';
+    });
+
+    // Destroy previous chart and recreate canvas cleanly
+    if (priceChartInstances[canvasId]) { priceChartInstances[canvasId].destroy(); delete priceChartInstances[canvasId]; }
+    const parent = canvas.parentElement;
+    const newCanvas = document.createElement('canvas');
+    newCanvas.id = canvasId;
+    parent.replaceChild(newCanvas, canvas);
+
+    const datasets = [
+      {
+        label: 'Precio EUR/kg',
+        data: precioKg,
+        borderColor: '#0524de',
+        backgroundColor: 'rgba(5,36,222,0.06)',
+        fill: hasCost ? '+1' : true,  // fill down to cost line if available
+        tension: 0.3,
+        pointRadius: 2,
+        borderWidth: 2,
+        order: 1,
+      },
+    ];
+
+    if (hasCost) {
+      datasets.push({
+        label: 'Coste masa EUR/kg',
+        data: costoKg,
+        borderColor: '#dc2626',
+        borderDash: [5, 3],
+        backgroundColor: 'transparent',
+        fill: false,
+        tension: 0.3,
+        pointRadius: 1.5,
+        borderWidth: 1.5,
+        order: 2,
+      });
+    }
+
+    // Custom filler plugin for margin-colored area between price and cost
+    const marginFillPlugin = hasCost ? {
+      id: 'marginFill_' + canvasId,
+      beforeDatasetsDraw(chart) {
+        const meta0 = chart.getDatasetMeta(0);
+        const meta1 = chart.getDatasetMeta(1);
+        if (!meta0.data.length || !meta1.data.length) return;
+        const ctx = chart.ctx;
+        for (let i = 0; i < meta0.data.length - 1; i++) {
+          const p0top = meta0.data[i], p1top = meta0.data[i+1];
+          const p0bot = meta1.data[i], p1bot = meta1.data[i+1];
+          if (!p0top || !p1top || !p0bot || !p1bot) continue;
+          ctx.save();
+          ctx.beginPath();
+          ctx.moveTo(p0top.x, p0top.y);
+          ctx.lineTo(p1top.x, p1top.y);
+          ctx.lineTo(p1bot.x, p1bot.y);
+          ctx.lineTo(p0bot.x, p0bot.y);
+          ctx.closePath();
+          ctx.fillStyle = marginColors[i];
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+    } : null;
+
+    priceChartInstances[canvasId] = new Chart(newCanvas, {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        animation: false,
+        responsive: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {position: 'top', labels: {font: {family: "'Open Sans'", size: 8}, usePointStyle: true, pointStyle: 'circle', boxWidth: 6}},
+          tooltip: {
+            callbacks: {
+              afterBody: function(items) {
+                const idx = items[0]?.dataIndex;
+                if (idx == null) return '';
+                const h = history[idx];
+                const lines = [];
+                if (h.nombre_cliente) lines.push('Cliente: ' + h.nombre_cliente);
+                if (h.margenCostoPorc) lines.push('Margen: ' + h.margenCostoPorc.toFixed(1) + '%');
+                if (h.precioVentaPack) lines.push('Pack: ' + h.precioVentaPack.toFixed(2) + ' EUR');
+                if (h.fecha_entrada_vigor) lines.push('Vigor: ' + h.fecha_entrada_vigor + (h.fecha_fin_vigor ? ' → ' + h.fecha_fin_vigor : ''));
+                return lines;
+              }
+            },
+            titleFont: {family: "'Open Sans'", size: 9},
+            bodyFont: {family: "'Open Sans'", size: 8},
+          },
+        },
+        scales: {
+          x: {ticks: {font: {size: 7}, maxRotation: 45, maxTicksLimit: 12}, grid: {color: '#e5e7eb'}},
+          y: {beginAtZero: false, ticks: {font: {size: 8}}, grid: {color: '#e5e7eb'}},
+        },
+      },
+      plugins: marginFillPlugin ? [marginFillPlugin] : [],
+    });
+
+    // Render meta info (escalados, latest client, vigencia) below the chart
+    const metaDiv = document.getElementById(canvasId.replace('ph-ref-', 'ph-meta-ref-').replace('ph-cand-', 'ph-meta-cand-'));
+    if (metaDiv && history.length > 0) {
+      const latest = history[history.length - 1];
+      let metaHtml = '';
+      if (latest.nombre_cliente) metaHtml += `<b>Cliente:</b> ${esc(latest.nombre_cliente)} &nbsp;`;
+      if (latest.margenCostoPorc) metaHtml += `<b>Margen:</b> ${latest.margenCostoPorc.toFixed(1)}% &nbsp;`;
+      if (latest.beneficio) metaHtml += `<b>Beneficio:</b> ${latest.beneficio.toFixed(2)} EUR &nbsp;`;
+      if (latest.fecha_entrada_vigor) metaHtml += `<br><b>Vigencia:</b> ${latest.fecha_entrada_vigor}${latest.fecha_fin_vigor ? ' → ' + latest.fecha_fin_vigor : ' (vigente)'}`;
+
+      // Escalados (volume pricing)
+      const esc3  = latest.escalado3000  || 0;
+      const esc5  = latest.escalado5000  || 0;
+      const esc25 = latest.escalado25000 || 0;
+      const esc50 = latest.escalado50000 || 0;
+      if (esc3 || esc5 || esc25 || esc50) {
+        metaHtml += `<div class="ph-escalados">`;
+        if (esc3)  metaHtml += `<span class="ph-esc-chip">3K: ${esc3.toFixed(2)}</span>`;
+        if (esc5)  metaHtml += `<span class="ph-esc-chip">5K: ${esc5.toFixed(2)}</span>`;
+        if (esc25) metaHtml += `<span class="ph-esc-chip">25K: ${esc25.toFixed(2)}</span>`;
+        if (esc50) metaHtml += `<span class="ph-esc-chip">50K: ${esc50.toFixed(2)}</span>`;
+        metaHtml += `</div>`;
+      }
+      metaDiv.innerHTML = metaHtml;
+    }
+  } catch (e) {
+    console.warn('Price history error for', cod, e);
+  }
+}
+
+// ─── START ────────────────────────────────────────────────────────
+init();
+
+// ─── DEV LIVE RELOAD ──────────────────────────────────────────────
+(function() {
+  let lastMtime = null;
+  async function checkReload() {
+    try {
+      const r = await fetch(`${API}/api/dev/mtime`);
+      const d = await r.json();
+      if (lastMtime === null) { lastMtime = d.mtime; return; }
+      if (d.mtime !== lastMtime) location.reload();
+    } catch {}
+  }
+  setInterval(checkReload, 1500);
+})();
+</script>
+</body>
+</html>
