@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Escandallos — Aurora I+D+i</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #0524de;
+    --hover:   #252eac;
+    --accent:  #6fc4fa;
+    --bg:      #f3f6fb;
+    --fg:      #0a0a2c;
+    --muted:   #6a7280;
+    --border:  #e4e9f3;
+    --danger:  #a42020;
+  }
+  *  { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Open Sans', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* ── Header ─────────────────────────────────────────────── */
+  header.top {
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    box-shadow: 0 1px 0 rgba(5, 36, 222, 0.02);
+  }
+  .back {
+    text-decoration: none;
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 13px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .back:hover { color: var(--primary); background: var(--bg); }
+  h1 {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--primary);
+    letter-spacing: -.3px;
+  }
+  h1 .sub {
+    font-weight: 400;
+    color: var(--muted);
+    font-size: 14px;
+    margin-left: 8px;
+    font-style: italic;
+  }
+
+  .search-box {
+    flex: 1;
+    max-width: 440px;
+    position: relative;
+    margin-left: auto;
+  }
+  .search-box input {
+    width: 100%;
+    padding: 10px 16px 10px 40px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: 14px;
+    outline: none;
+    transition: border-color .15s, box-shadow .15s;
+    background: var(--bg);
+  }
+  .search-box input:focus {
+    border-color: var(--primary);
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(5, 36, 222, .08);
+  }
+  .search-box svg {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    pointer-events: none;
+  }
+
+  /* ── Main ─────────────────────────────────────────────── */
+  main { max-width: 1180px; margin: 22px auto 56px; padding: 0 28px; }
+
+  .meta {
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .meta .spinner {
+    display: inline-block;
+    width: 12px; height: 12px;
+    border: 2px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-right: 6px;
+    vertical-align: -2px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Lista de productos ────────────────────────────────── */
+  .list {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .row { border-bottom: 1px solid var(--border); }
+  .row:last-child { border-bottom: none; }
+
+  .row-head {
+    display: grid;
+    grid-template-columns: 28px 150px 1fr 180px 90px;
+    align-items: center;
+    gap: 18px;
+    padding: 14px 20px;
+    cursor: pointer;
+    transition: background-color .15s;
+    user-select: none;
+  }
+  .row-head:hover { background: #fbfcfe; }
+  .row.open .row-head { background: #f8faff; }
+
+  .arrow {
+    width: 22px; height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary);
+    transition: transform .22s;
+  }
+  .row.open .arrow { transform: rotate(90deg); }
+
+  .code {
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--primary);
+    font-family: 'SF Mono', Consolas, 'Courier New', monospace;
+  }
+  .desc { font-weight: 600; font-size: 14px; overflow: hidden;
+          white-space: nowrap; text-overflow: ellipsis; }
+  .type {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    font-weight: 600;
+    overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  }
+  .count {
+    text-align: right;
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  /* ── Cuerpo desplegable ────────────────────────────────── */
+  .row-body {
+    display: none;
+    padding: 18px 24px 24px 64px;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .row.open .row-body { display: block; }
+
+  .esc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .esc-stat {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .esc-stat label {
+    display: block;
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    margin-bottom: 4px;
+    font-weight: 700;
+  }
+  .esc-stat strong {
+    font-size: 17px;
+    color: var(--primary);
+    font-weight: 700;
+  }
+
+  table.comp {
+    width: 100%;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    border-collapse: separate;
+    border-spacing: 0;
+    overflow: hidden;
+    font-size: 12.5px;
+  }
+  table.comp th {
+    background: var(--bg);
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    padding: 9px 12px;
+    text-align: left;
+    font-weight: 700;
+    border-bottom: 1px solid var(--border);
+  }
+  table.comp td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  table.comp tr:last-child td { border-bottom: none; }
+  table.comp td.num {
+    text-align: right;
+    font-family: 'SF Mono', Consolas, monospace;
+    font-size: 12px;
+  }
+  table.comp td.code {
+    font-family: 'SF Mono', monospace;
+    font-size: 12px;
+    color: var(--primary);
+    font-weight: 600;
+  }
+
+  .tag {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .3px;
+  }
+  .tag.mp                { background: #e8f0ff; color: var(--primary); }
+  .tag.material_auxiliar { background: #fff3db; color: #a45a00; }
+  .tag.bobina            { background: #f3e8ff; color: #6b1b9a; }
+  .tag.formato_solido    { background: #e6f7e0; color: #1f6b1f; }
+
+  .fuente {
+    font-size: 10px;
+    color: var(--muted);
+    font-weight: 600;
+    font-family: 'SF Mono', monospace;
+  }
+
+  /* ── Paginación ────────────────────────────────────────── */
+  .pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    margin: 28px 0 8px;
+    flex-wrap: wrap;
+  }
+  .pagination button {
+    background: #fff;
+    border: 1px solid var(--border);
+    padding: 7px 13px;
+    border-radius: 999px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--fg);
+    transition: all .15s;
+    min-width: 36px;
+  }
+  .pagination button:hover:not(:disabled) {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+  }
+  .pagination button:disabled { opacity: .35; cursor: not-allowed; }
+  .pagination button.active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+  }
+  .pagination .ellipsis {
+    color: var(--muted);
+    padding: 0 4px;
+    font-size: 13px;
+  }
+
+  /* ── Estados ────────────────────────────────────────────── */
+  .placeholder {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .error {
+    background: #fff0f0;
+    border: 1px solid #f5c2c2;
+    color: var(--danger);
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin: 16px 0;
+    font-size: 13px;
+  }
+
+  /* ── Tags de clasificación ────────────────────────────────────────────────── */
+  .row-tags {
+    padding: 8px 24px;
+    background: #f8fafc;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .tag {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .tag-cat { background: #e3f2fd; color: #1976d2; border: 1px solid #90caf9; }
+  .tag-subcat { background: #f3e5f5; color: #7b1fa2; border: 1px solid #ce93d8; }
+  .tag-sabor { background: #fff3e0; color: #e65100; border: 1px solid #ffb74d; }
+  .tag-macro { background: #e8f5e9; color: #2e7d32; border: 1px solid #81c784; }
+  .tag-cert { background: #fce4ec; color: #c2185b; border: 1px solid #f48fb1; }
+  .tag-alerg { background: #ffebee; color: #c62828; border: 1px solid #ef5350; }
+
+  /* ── Precio calculado ──────────────────────────────────── */
+  .precio-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #f0f7ff;
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+  .precio-chip span:last-child {
+    font-weight: 700;
+    color: var(--primary);
+  }
+
+  /* Responsive */
+  @media (max-width: 820px) {
+    .row-head {
+      grid-template-columns: 24px 120px 1fr 60px;
+      gap: 12px;
+      padding: 12px 16px;
+    }
+    .row-head .type { display: none; }
+    .row-body { padding: 14px 16px 18px 48px; }
+    header.top { padding: 12px 16px; flex-wrap: wrap; }
+    h1 .sub { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <a href="/" class="back">&larr; volver</a>
+  <h1>Escandallos<span class="sub">— intelligent nutrition</span></h1>
+  <div class="search-box">
+    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+         viewBox="0 0 16 16">
+      <circle cx="7" cy="7" r="5"/>
+      <path d="m14 14-3-3" stroke-linecap="round"/>
+    </svg>
+    <input type="search" id="q" placeholder="Buscar por código o descripción..." autocomplete="off">
+  </div>
+</header>
+
+<main>
+  <div class="meta" id="meta">
+    <span><span class="spinner"></span>Cargando...</span>
+    <span id="meta-per-page"></span>
+  </div>
+  <div class="list" id="list"></div>
+  <div class="pagination" id="pag"></div>
+</main>
+
+<script>
+  // ════════════════════════════════════════════════════════════════════════
+  // Auth gate
+  // ════════════════════════════════════════════════════════════════════════
+  const token = localStorage.getItem('aurora_token');
+  if (!token) { window.location.replace('/login'); }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // Estado
+  // ════════════════════════════════════════════════════════════════════════
+  const $list = document.getElementById('list');
+  const $pag  = document.getElementById('pag');
+  const $meta = document.getElementById('meta');
+  const $q    = document.getElementById('q');
+
+  const state = {
+    page: 1,
+    per_page: 15,
+    q: '',
+    total: 0,
+    pages: 0,
+    // Cache cliente — evita volver a pedir el escandallo de un producto
+    // que ya se desplegó en esta sesión.
+    esc: Object.create(null),
+  };
+
+  // ════════════════════════════════════════════════════════════════════════
+  // Utilidades
+  // ════════════════════════════════════════════════════════════════════════
+  const fmt2 = (n) => (n == null || isNaN(n)) ? '–' : Number(n).toFixed(2);
+  const fmt4 = (n) => (n == null || isNaN(n)) ? '–' : Number(n).toFixed(4);
+  const fmtEur = (n) => (n == null || isNaN(n)) ? '–' : '€' + Number(n).toFixed(4);
+  const fmtInt = (n) => (n == null || isNaN(n)) ? '–' : Number(n).toLocaleString('es-ES');
+  const esc    = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+
+  // ════════════════════════════════════════════════════════════════════════
+  // Carga de una página
+  // ════════════════════════════════════════════════════════════════════════
+  async function loadPage() {
+    $list.innerHTML = '<div class="placeholder"><span class="spinner"></span> Cargando página...</div>';
+    $pag.innerHTML = '';
+    $meta.innerHTML = '<span><span class="spinner"></span>Cargando...</span>';
+
+    const params = new URLSearchParams({
+      page: state.page,
+      per_page: state.per_page,
+    });
+    if (state.q) params.set('q', state.q);
+
+    try {
+      const res = await fetch('/api/products/index-completo?' + params);
+      const data = await res.json();
+
+      if (data.error) {
+        $list.innerHTML = `<div class="error">Error al cargar: ${esc(data.error)}</div>`;
+        $meta.innerHTML = '';
+        return;
+      }
+
+      state.total = data.total;
+      state.pages = data.pages;
+
+      $meta.innerHTML =
+        `<span>${fmtInt(data.total)} productos con escandallo · página ${data.page} de ${data.pages || 1}</span>` +
+        `<span>${state.per_page} por página</span>`;
+
+      if (!data.productos || !data.productos.length) {
+        $list.innerHTML = '<div class="placeholder">Sin productos que coincidan con la búsqueda.</div>';
+        return;
+      }
+
+      $list.innerHTML = data.productos.map(p => {
+        const tags = [];
+        if (p.categoria) tags.push(`<span class="tag tag-cat">${esc(p.categoria)}</span>`);
+        if (p.subcategoria) tags.push(`<span class="tag tag-subcat">${esc(p.subcategoria)}</span>`);
+        if (p.sabor) tags.push(`<span class="tag tag-sabor">${esc(p.sabor)}</span>`);
+        if (p.macronutrientes) tags.push(`<span class="tag tag-macro">${esc(p.macronutrientes)}</span>`);
+        if (p.certificaciones) tags.push(`<span class="tag tag-cert">${esc(p.certificaciones)}</span>`);
+        if (p.alergenos) tags.push(`<span class="tag tag-alerg">${esc(p.alergenos)}</span>`);
+
+        return `
+          <div class="row" data-cod="${esc(p.codigo)}">
+            <div class="row-head" data-cod="${esc(p.codigo)}">
+              <span class="arrow">
+                <svg width="14" height="14" fill="none" stroke="currentColor"
+                     stroke-width="2.5" viewBox="0 0 14 14">
+                  <path d="M5 2l5 5-5 5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+              <span class="code">${esc(p.codigo)}</span>
+              <span class="desc">${esc(p.descripcion)}</span>
+              <span class="type">${esc(p.tipo_producto || '')}</span>
+              <span class="count">${p.componentes_count} comp.</span>
+            </div>
+            ${tags.length > 0 ? `<div class="row-tags">${tags.join('')}</div>` : ''}
+            <div class="row-body" id="body-${esc(p.codigo)}"></div>
+          </div>
+        `;
+      }).join('');
+
+      // Engancha el click en cada cabecera (evita inline onclick + cualquier
+      // problema de escape con caracteres especiales en el código).
+      $list.querySelectorAll('.row-head').forEach(el => {
+        el.addEventListener('click', () => toggleRow(el.dataset.cod));
+      });
+
+      renderPag();
+    } catch (e) {
+      $list.innerHTML = `<div class="error">Error de red: ${esc(e.message)}</div>`;
+      $meta.innerHTML = '';
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // Paginación
+  // ════════════════════════════════════════════════════════════════════════
+  function renderPag() {
+    const p = state.page, n = state.pages;
+    if (n <= 1) { $pag.innerHTML = ''; return; }
+
+    // Ventana de números: 1, n, y ±2 alrededor del actual.
+    const wanted = new Set([1, 2, n - 1, n, p - 1, p, p + 1]);
+    const nums   = [...wanted].filter(x => x >= 1 && x <= n)
+                              .sort((a, b) => a - b);
+
+    let html  = `<button data-go="1"      ${p === 1 ? 'disabled' : ''} title="Primera">&laquo;</button>`;
+    html     += `<button data-go="${p-1}" ${p === 1 ? 'disabled' : ''} title="Anterior">&lsaquo;</button>`;
+
+    let prev = 0;
+    for (const x of nums) {
+      if (prev && x - prev > 1) html += `<span class="ellipsis">…</span>`;
+      html += `<button data-go="${x}" class="${x === p ? 'active' : ''}">${x}</button>`;
+      prev = x;
+    }
+
+    html += `<button data-go="${p+1}" ${p === n ? 'disabled' : ''} title="Siguiente">&rsaquo;</button>`;
+    html += `<button data-go="${n}"   ${p === n ? 'disabled' : ''} title="Última">&raquo;</button>`;
+
+    $pag.innerHTML = html;
+    $pag.querySelectorAll('button[data-go]').forEach(b => {
+      b.addEventListener('click', () => gotoPage(parseInt(b.dataset.go, 10)));
+    });
+  }
+
+  function gotoPage(n) {
+    if (!Number.isFinite(n) || n < 1 || n > state.pages || n === state.page) return;
+    state.page = n;
+    loadPage();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // Toggle + carga lazy del escandallo
+  // ════════════════════════════════════════════════════════════════════════
+  async function toggleRow(cod) {
+    const row  = $list.querySelector(`.row[data-cod="${CSS.escape(cod)}"]`);
+    const body = document.getElementById('body-' + cod);
+    if (!row) return;
+
+    const isOpen = row.classList.contains('open');
+    if (isOpen) { row.classList.remove('open'); return; }
+
+    row.classList.add('open');
+
+    // Si ya lo tenemos en cache del cliente, render directo.
+    if (state.esc[cod]) {
+      body.innerHTML = renderEsc(state.esc[cod]) + '<div id="precio-' + cod + '"></div>';
+      loadPrecio(cod);  // Cargar precio automáticamente
+      return;
+    }
+
+    body.innerHTML = '<div class="placeholder"><span class="spinner"></span> Cargando escandallo...</div>';
+
+    try {
+      const res = await fetch('/api/product/' + encodeURIComponent(cod) + '/escandallo');
+      const data = await res.json();
+      state.esc[cod] = data;
+      body.innerHTML = renderEsc(data) + '<div id="precio-' + cod + '"></div>';
+      loadPrecio(cod);  // Cargar precio automáticamente
+    } catch (e) {
+      body.innerHTML = `<div class="error">Error de red: ${esc(e.message)}</div>`;
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // Render del escandallo de un producto
+  // ════════════════════════════════════════════════════════════════════════
+  function renderEsc(data) {
+    if (data.error) {
+      return `<div class="error">${esc(data.error)}</div>`;
+    }
+
+    const fuentesCount = data._fuentes_count || {};
+    const fuentesStr = Object.entries(fuentesCount)
+      .map(([k, v]) => `${k}: ${v}`).join(' · ');
+
+    const stats = `
+      <div class="esc-grid">
+        <div class="esc-stat">
+          <label>Coste amasijo</label>
+          <strong>${fmtEur(data.coste_amasijo)}</strong>
+        </div>
+        <div class="esc-stat">
+          <label>+ auxiliar + bobina</label>
+          <strong>${fmtEur(data.coste_amasijo_bobina)}</strong>
+        </div>
+        <div class="esc-stat">
+          <label>Coste unitario</label>
+          <strong>${fmtEur(data.coste_unitario)}</strong>
+        </div>
+        <div class="esc-stat">
+          <label>Coste millar</label>
+          <strong>${fmtEur(data.coste_millar)}</strong>
+        </div>
+        <div class="esc-stat">
+          <label>Kg amasijo</label>
+          <strong>${fmt4(data.kg_amasijo)}</strong>
+        </div>
+        <div class="esc-stat">
+          <label>Nº unidades</label>
+          <strong>${fmtInt(data.numero_unidades)}</strong>
+        </div>
+        <div class="esc-stat">
+          <label>Tipo motor</label>
+          <strong>${esc(data.cost_type || '–')}</strong>
+        </div>
+      </div>`;
+
+    const comps = data.componentes;
+    if (!comps || !comps.length) {
+      return stats + '<div class="placeholder">Sin componentes.</div>';
+    }
+
+    const rows = comps.map((c, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td class="code">${esc(c.codigo)}</td>
+        <td>${esc(c.descripcion || '')}</td>
+        <td><span class="tag ${esc(c.tipo_componente)}">${esc(c.tipo_componente)}</span></td>
+        <td class="num">${fmt4(c.cantidad)}</td>
+        <td class="num">${fmt4(c.precio)}</td>
+        <td><span class="fuente">${esc(c.precio_fuente)}</span></td>
+        <td class="num">${fmtEur(c.subtotal)}</td>
+        <td class="num">${c.pct_coste == null ? '–' : c.pct_coste.toFixed(1) + '%'}</td>
+      </tr>`).join('');
+
+    const table = `
+      <table class="comp">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Código</th>
+            <th>Descripción</th>
+            <th>Tipo</th>
+            <th class="num">Cantidad</th>
+            <th class="num">Precio</th>
+            <th>Fuente</th>
+            <th class="num">Subtotal</th>
+            <th class="num">% coste</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div class="meta" style="margin-top:10px">
+        <span>Fuentes usadas: ${esc(fuentesStr)}</span>
+      </div>`;
+
+    return stats + table;
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // Carga automática de precios desde endpoint 1 del motor
+  // ════════════════════════════════════════════════════════════════════════
+  async function loadPrecio(cod) {
+    const precioDiv = document.getElementById('precio-' + cod);
+    if (!precioDiv) return;
+
+    precioDiv.innerHTML = '<div class="placeholder" style="margin-top:16px"><span class="spinner"></span> Calculando precio...</div>';
+
+    try {
+      const res = await fetch('/api/prices/auto-calculate/' + encodeURIComponent(cod));
+      const data = await res.json();
+
+      if (data.error) {
+        precioDiv.innerHTML = `<div class="error" style="margin-top:12px">Error al calcular precio: ${esc(data.error)}</div>`;
+        return;
+      }
+
+      const f2 = v => v != null ? parseFloat(v).toFixed(2) + ' €' : '–';
+      const f3 = v => v != null ? parseFloat(v).toFixed(3) + ' €' : '–';
+      const fp = v => v != null ? parseFloat(v).toFixed(1) + ' %' : '–';
+
+      const escalados = [
+        {label:'3.000 uds', key:'escalado3000'},
+        {label:'5.000 uds', key:'escalado5000'},
+        {label:'25.000 uds', key:'escalado25000'},
+        {label:'50.000 uds', key:'escalado50000'},
+      ].filter(e => data[e.key] != null && parseFloat(data[e.key]) > 0)
+       .map(e => `<div class="precio-chip"><span>${esc(e.label)}</span>${f3(data[e.key])}</div>`)
+       .join('');
+
+      precioDiv.innerHTML = `
+        <div style="margin-top:16px; padding-top:12px; border-top:1px solid var(--border)">
+          <strong style="display:block; margin-bottom:8px; color:var(--primary)">Precio calculado (Motor)</strong>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px">
+            <div>
+              <label style="font-size:12px;color:var(--muted)">Precio Pack</label>
+              <strong style="font-size:18px;color:var(--primary)">${f2(data.precioVentaPack)}</strong>
+            </div>
+            <div>
+              <label style="font-size:12px;color:var(--muted)">Precio kg</label>
+              <strong style="font-size:16px">${f2(data.precio1kgProd)}</strong>
+            </div>
+            <div>
+              <label style="font-size:12px;color:var(--muted)">Precio unitario</label>
+              <strong style="font-size:16px">${f3(data.precio1bargel)}</strong>
+            </div>
+            <div>
+              <label style="font-size:12px;color:var(--muted)">Margen coste</label>
+              <strong style="font-size:16px">${fp(data.margenCostoPorc)}</strong>
+            </div>
+          </div>
+          ${escalados ? `<div style="display:flex;gap:8px;flex-wrap:wrap">${escalados}</div>` : ''}
+        </div>`;
+    } catch (e) {
+      precioDiv.innerHTML = `<div class="error" style="margin-top:12px">Error de conexión: ${esc(e.message)}</div>`;
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // Buscador debounced
+  // ════════════════════════════════════════════════════════════════════════
+  let searchTimer = null;
+  $q.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      const v = $q.value.trim();
+      if (v === state.q) return;
+      state.q = v;
+      state.page = 1;
+      // Invalidamos la cache local de escandallos porque al cambiar
+      // búsqueda los códigos visibles pueden ser otros distintos.
+      // (Mantenemos esc previo — sigue siendo válido si vuelve a aparecer
+      //  el mismo código.)
+      loadPage();
+    }, 300);
+  });
+
+  // ════════════════════════════════════════════════════════════════════════
+  // Init
+  // ════════════════════════════════════════════════════════════════════════
+  loadPage();
+</script>
+
+</body>
+</html>

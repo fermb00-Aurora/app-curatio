@@ -355,6 +355,130 @@ def _num(x, default: float = 0.0) -> float:
 # Endpoints
 # ═══════════════════════════════════════════════════════════════════════════
 
+@router.get("/products/index-completo")
+def index_completo(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(15, ge=1, le=100),
+    q: Optional[str] = None,
+):
+    """
+    Índice COMPLETO de productos con categoría, subcategoría, sabor,
+    macronutrientes, certificaciones, alergenos.
+
+    Estructura devuelve todos los campos disponibles en Articulos.
+    """
+    cache_key = f"idx_completo:{page}:{per_page}:{q or ''}"
+    cached = state.get_cached(cache_key)
+    if cached is not None:
+        return cached
+
+    where_sql = ""
+    params: list[Any] = []
+    if q and q.strip():
+        like = f"%{q.strip()}%"
+        where_sql = (
+            " WHERE (v.CodigoArticulo LIKE ? OR "
+            "        a.DescripcionArticulo LIKE ?)"
+        )
+        params.extend([like, like])
+
+    # ── COUNT ──────────────────────────────────────────────────────────────
+    try:
+        count_row = mssql.fetch_one(
+            "SELECT COUNT(DISTINCT v.CodigoArticulo) AS n "
+            "FROM Vis_MRH_EsquemaEscandallo v "
+            "LEFT JOIN Articulos a ON a.CodigoArticulo = v.CodigoArticulo "
+            f"{where_sql}",
+            params,
+        )
+        total = int((count_row or {}).get("n", 0) or 0)
+    except Exception as e:
+        return {
+            "error": f"Error al contar: {e}",
+            "page": page, "per_page": per_page, "total": 0,
+            "pages": 0, "productos": [],
+        }
+
+    if total == 0:
+        result = {
+            "page": page, "per_page": per_page, "total": 0,
+            "pages": 0, "productos": [],
+        }
+        state.set_cached(cache_key, result, "filters")
+        return result
+
+    # ── PAGINACIÓN ─────────────────────────────────────────────────────────
+    offset = (page - 1) * per_page
+    pages = (total + per_page - 1) // per_page
+
+    # Query: obtener TODOS los campos de Articulos + conteo de componentes
+    try:
+        rows = mssql.fetch_all(
+            "SELECT v.CodigoArticulo AS codigo, "
+            "       a.*, "
+            "       COUNT(*) OVER (PARTITION BY v.CodigoArticulo) AS componentes_count "
+            "FROM Vis_MRH_EsquemaEscandallo v "
+            "LEFT JOIN Articulos a ON a.CodigoArticulo = v.CodigoArticulo "
+            f"{where_sql} "
+            "GROUP BY v.CodigoArticulo, a.CodigoArticulo, a.DescripcionArticulo, "
+            "         a.MRH_TipoProducto, a.MRH_VTipoReposicion, "
+            "         a.MRH_UnidadesEscandallo, a.MRH_PesoOptimo, a.MRH_PesoUnidad, "
+            "         a.MRH_Categoria, a.MRH_SubCategoria, a.Sabor, "
+            "         a.MRH_Macronutrientes, a.Certificaciones, a.Alergenos "
+            "ORDER BY v.CodigoArticulo "
+            "OFFSET ? ROWS FETCH NEXT ? ROWS ONLY",
+            params + [offset, per_page],
+        )
+    except Exception as e:
+        log.warning("Query con todos los campos falló: %s. Intentando query simplificada.", e)
+        try:
+            # Fallback: query simplificada
+            rows = mssql.fetch_all(
+                "SELECT DISTINCT v.CodigoArticulo AS codigo, "
+                "       a.DescripcionArticulo, a.MRH_TipoProducto, "
+                "       a.MRH_Categoria, a.MRH_SubCategoria, a.Sabor "
+                "FROM Vis_MRH_EsquemaEscandallo v "
+                "LEFT JOIN Articulos a ON a.CodigoArticulo = v.CodigoArticulo "
+                f"{where_sql} "
+                "ORDER BY v.CodigoArticulo "
+                "OFFSET ? ROWS FETCH NEXT ? ROWS ONLY",
+                params + [offset, per_page],
+            )
+        except Exception as e2:
+            return {
+                "error": f"Query falló: {e2}",
+                "page": page, "per_page": per_page, "total": total,
+                "pages": pages, "productos": [],
+            }
+
+    # ── PROCESAR RESULTADOS ────────────────────────────────────────────────
+    productos = []
+    for r in rows:
+        producto = {
+            "codigo": r.get("codigo"),
+            "descripcion": r.get("DescripcionArticulo") or "(sin descripción)",
+            "tipo_producto": r.get("MRH_TipoProducto") or "",
+            "categoria": r.get("MRH_Categoria") or "",
+            "subcategoria": r.get("MRH_SubCategoria") or "",
+            "sabor": r.get("Sabor") or "",
+            "macronutrientes": r.get("MRH_Macronutrientes") or "",
+            "certificaciones": r.get("Certificaciones") or "",
+            "alergenos": r.get("Alergenos") or "",
+            "componentes_count": int(r.get("componentes_count") or 0),
+        }
+        productos.append(producto)
+
+    result = {
+        "page": page,
+        "per_page": per_page,
+        "total": total,
+        "pages": pages,
+        "productos": productos,
+    }
+    state.set_cached(cache_key, result, "filters")
+    return result
+
+
 @router.get("/products/escandallo-index")
 def escandallo_index(
     page: int = Query(1, ge=1),
@@ -394,15 +518,11 @@ def escandallo_index(
 
     where_sql = ""
     params: list[Any] = []
-    # Filtro por familia: solo MMP (3000) y mmaux (4000)
-    familia_filter = " (a.CodigoFamilia = 3000 OR a.CodigoFamilia = 4000)"
-    where_sql = f" WHERE {familia_filter}"
-
     if q and q.strip():
         like = f"%{q.strip()}%"
-        where_sql += (
-            " AND (v.CodigoArticulo LIKE ? OR "
-            "      a.DescripcionArticulo LIKE ?)"
+        where_sql = (
+            " WHERE (v.CodigoArticulo LIKE ? OR "
+            "        a.DescripcionArticulo LIKE ?)"
         )
         params.extend([like, like])
 
@@ -731,6 +851,102 @@ def escandallo(cod: str):
 
     state.set_cached(cache_key, result, "escandallo")
     return result
+
+
+@router.get("/products/explore-articulos")
+def explore_articulos():
+    """
+    [DEBUG] Explora la estructura de tabla Articulos para detectar columnas
+    de categoría, sabor, macronutrientes, certificaciones, alergenos.
+    """
+    try:
+        # Obtener estructura de tabla Articulos
+        columnas_info = mssql.fetch_all(
+            "SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, CHARACTER_MAXIMUM_LENGTH "
+            "FROM INFORMATION_SCHEMA.COLUMNS "
+            "WHERE TABLE_NAME = 'Articulos' "
+            "ORDER BY COLUMN_NAME"
+        )
+
+        # Muestra de datos
+        muestra = mssql.fetch_one(
+            "SELECT TOP 1 * FROM Articulos WHERE CodigoArticulo IN ("
+            "  SELECT TOP 1 CodigoArticulo FROM Vis_MRH_EsquemaEscandallo"
+            ")"
+        )
+
+        # Buscar columnas potenciales
+        columnas_dict = {c['COLUMN_NAME']: f"{c['DATA_TYPE']}({c['CHARACTER_MAXIMUM_LENGTH']})" if c['CHARACTER_MAXIMUM_LENGTH'] else c['DATA_TYPE']
+                        for c in columnas_info}
+
+        potenciales = {}
+        for palabra_clave in ['categoria', 'categoria', 'subcategoria', 'sabor', 'macronutriente',
+                             'proteina', 'grasa', 'carbohidrato', 'certificacion', 'alergeno', 'alergenico']:
+            potenciales[palabra_clave] = [col for col in columnas_dict.keys()
+                                          if palabra_clave.lower() in col.lower()]
+
+        return {
+            "total_columnas": len(columnas_dict),
+            "columnas": columnas_dict,
+            "columnas_potenciales": potenciales,
+            "muestra_primer_producto": muestra,
+        }
+    except Exception as e:
+        return {"error": str(e), "type": type(e).__name__}
+
+
+@router.get("/products/debug-familia")
+def debug_familia():
+    """
+    [DEBUG] Muestra muestras de CodigoFamilia para entender la estructura.
+    """
+    try:
+        rows = mssql.fetch_all(
+            "SELECT TOP 20 "
+            "  v.CodigoArticulo, "
+            "  a.CodigoFamilia, "
+            "  SQL_VARIANT_PROPERTY(a.CodigoFamilia, 'BaseType') AS tipo_dato "
+            "FROM Vis_MRH_EsquemaEscandallo v "
+            "LEFT JOIN Articulos a ON a.CodigoArticulo = v.CodigoArticulo "
+            "GROUP BY v.CodigoArticulo, a.CodigoFamilia "
+        )
+
+        # Estadísticas
+        todas = mssql.fetch_all(
+            "SELECT DISTINCT a.CodigoFamilia "
+            "FROM Vis_MRH_EsquemaEscandallo v "
+            "LEFT JOIN Articulos a ON a.CodigoArticulo = v.CodigoArticulo "
+        )
+
+        familia_3000 = mssql.fetch_one(
+            "SELECT COUNT(*) AS cnt FROM ("
+            "  SELECT DISTINCT v.CodigoArticulo "
+            "  FROM Vis_MRH_EsquemaEscandallo v "
+            "  LEFT JOIN Articulos a ON a.CodigoArticulo = v.CodigoArticulo "
+            "  WHERE a.CodigoFamilia = 3000 OR a.CodigoFamilia = '3000' OR CAST(a.CodigoFamilia AS VARCHAR) = '3000' "
+            ") t"
+        )
+
+        familia_4000 = mssql.fetch_one(
+            "SELECT COUNT(*) AS cnt FROM ("
+            "  SELECT DISTINCT v.CodigoArticulo "
+            "  FROM Vis_MRH_EsquemaEscandallo v "
+            "  LEFT JOIN Articulos a ON a.CodigoArticulo = v.CodigoArticulo "
+            "  WHERE a.CodigoFamilia = 4000 OR a.CodigoFamilia = '4000' OR CAST(a.CodigoFamilia AS VARCHAR) = '4000' "
+            ") t"
+        )
+
+        return {
+            "muestras": rows,
+            "todas_familias": [r['CodigoFamilia'] for r in todas],
+            "total_familia_3000": familia_3000.get('cnt') if familia_3000 else 0,
+            "total_familia_4000": familia_4000.get('cnt') if familia_4000 else 0,
+            "total_sin_filtro": mssql.fetch_one(
+                "SELECT COUNT(DISTINCT v.CodigoArticulo) AS n FROM Vis_MRH_EsquemaEscandallo v"
+            ).get('n') if mssql else 0,
+        }
+    except Exception as e:
+        return {"error": str(e), "type": type(e).__name__}
 
 
 @router.get("/product/{cod}/raw")
